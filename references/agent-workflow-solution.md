@@ -379,7 +379,7 @@ flowchart LR
 - 高风险 finding 必须经过 adversarial verify，而不是单个 reviewer 说了算。
 - 如果多个 Agent 结论冲突，主 Agent 汇总差异并升级为决策点。
 
-## 10. 先分诊，再自适应生成五类场景 Prompt
+## 10. 分诊、初始化与执行 Prompt
 
 五类场景不要让用户直接硬选。更稳的方式是：先让主 Agent 做任务分诊与未知收敛，再初始化当前任务的 Agent 环境和文档，最后把这些结果注入对应场景模板。
 
