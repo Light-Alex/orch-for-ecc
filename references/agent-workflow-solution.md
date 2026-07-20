@@ -381,100 +381,165 @@ flowchart LR
 
 ## 10. 先分诊，再自适应生成五类场景 Prompt
 
-五类场景不要让用户直接硬选。更稳的方式是：先让主 Agent 做任务分诊，再初始化当前任务的 Agent 环境，最后把这两份结果注入对应场景模板。
+五类场景不要让用户直接硬选。更稳的方式是：先让主 Agent 做任务分诊与未知收敛，再初始化当前任务的 Agent 环境和文档，最后把这些结果注入对应场景模板。
 
 ```text
 用户提出任务
   ↓
-任务分诊：判断场景、等级、风险、ECC 能力组合
+任务分诊与未知收敛：识别四类未知，判断场景、等级、风险、ECC 能力组合
   ↓
 用户审批分诊结果
   ↓
 Agent 环境初始化：裁剪 rules / hooks / MCP / agents / workflows
   ↓
-用户审批环境方案
+文档初始化：生成 diagnosis、计划、PRD/设计/API/schema/checklist 等任务约束文档
+  ↓
+用户审批环境方案和关键文档
+  ↓
+空白上下文 Agent 读取 diagnosis + 初始化文档
   ↓
 进入对应场景的自适应 Prompt
 ```
 
 > 下文默认 ECC 通过 Claude Code 插件安装，因此 ECC 命令使用 `/ecc:` 前缀；如果你使用的是本地命令或 full installer，以 `/help` 中实际显示的命令名为准。
 
-### 10.1 任务分诊 Prompt：先判断场景和等级
+### 10.1 任务分诊与未知收敛 Prompt：先把四类未知搞清楚
 
-先用这段 Prompt 判断任务属于哪类场景、什么复杂度、需要哪些 ECC 能力。分诊通过前，不进入实现。
+任务分诊不是一次性打标签，而是一个多轮收敛过程。复杂或模糊任务必须先识别四类未知：
+
+| 未知类型 | 分诊阶段要搞清什么 | 动作 |
+| --- | --- | --- |
+| Known Knowns | 用户已经明确说出的目标、约束、验收标准 | 复述确认 |
+| Known Unknowns | 用户知道还没决定的问题 | 定向提问 |
+| Unknown Knowns | 用户看到方案对比后才会表达的隐性偏好 | 给选项 / 原型 / 方案对比 |
+| Unknown Unknowns | 用户没提到但会影响任务成败的风险 | blind spot pass / 风险扫描 |
+
+只有当目标、范围、风险和验证方式达到可执行清晰度，才能进入 Agent 环境初始化。分诊不清楚时，继续访谈；不要为了推进流程而假装已经明确。
 
 ```text
-请先不要实现。请作为 ECC 工作流路由器，对我的任务做分诊。
+请先不要实现。请作为 ECC 工作流路由器，对我的任务做“任务分诊与未知收敛”。
 
 我的任务是：
 [描述任务]
 
-请完成以下判断：
+请按四类未知进行分析：
 
-1. 场景分类：
-   判断这个任务最接近哪一类：
-   - A. 从零开发项目 / MVP
-   - B. 已有项目加新特性
-   - C. 项目重构
-   - D. 代码迁移 / 架构迁移
-   - E. Bug 定位与修复
-   - F. 混合场景 / 无法判断
+1. Known Knowns：我已经明确说出的目标、范围、非目标、约束和验收标准。
+2. Known Unknowns：我明确知道还没确定、需要你问我的问题。
+3. Unknown Knowns：我可能有隐性偏好，需要你通过方案对比、原型或选项帮我发现。
+4. Unknown Unknowns：我没有提到但会影响任务成败的风险、边界或依赖。
 
-2. 复杂度等级：
-   按 S/M/L/XL 评估任务复杂度：
-   - S：单文件、小修复、低风险、容易验证。
-   - M：少量文件、常规功能或 bug、有明确验收方式。
-   - L：多模块、行为变化明显、涉及权限/数据/兼容性/核心路径。
-   - XL：迁移、安全、架构替换、数据语义变化、不可逆或难回滚操作。
-
-3. 风险识别：
-   检查是否涉及认证、权限、计费、安全、数据写入、生产数据、公共 API、外部副作用、缺测试或难验证路径。
-
-4. ECC 能力建议：
-   建议是否需要 CodeGraph、ECC 命令、子 Agent、workflow、MCP、checkpoint，以及 hook profile 使用 minimal、standard 还是 strict。
-
-5. Agent 派发建议：
-   说明是否需要探索类 Agent、implementer / coder Agent、build-fix Agent、code-reviewer、security-reviewer、performance-reviewer、docs-lookup、verify / e2e Agent。
-   同时说明哪些 Agent 可以写，哪些只读。
-
-6. 停止条件：
-   列出必须暂停并让我确认的条件。
+分诊要求：
+- 如果信息不足，不要给最终分诊；先问我最多 5 个关键问题。
+- 每个问题必须说明“为什么这个答案会改变执行方案”。
+- 如果偏好不明确，请给 2-3 个方案选项让我选，并说明取舍。
+- 必须做 blind spot pass，主动检查权限、安全、数据、迁移、回滚、性能、兼容性、测试可行性、外部副作用、文档冲突、发布影响、多 Agent 写入冲突、上下文污染和 MCP 必要性。
+- 已有项目任务可以使用 CodeGraph 或只读探索 Agent 初步确认影响面；此阶段不要写代码。
+- 如果问题不会改变架构、数据、权限、验证方式或风险边界，不要问。
+- 如果用户没有偏好，请给推荐默认值，并说明可回滚性。
+- 完成未知收敛后，再给出场景、等级、ECC 能力、Agent 派发和停止条件。
+- 在我确认前，不要进入 Agent 环境初始化、文档初始化或实现阶段。
 
 请按以下格式输出，不要开始实现：
 
 # ECC 任务分诊结果
 
-## 推荐场景
-- 场景：
+## 0. 分诊状态
+- 当前状态：Need Clarification / Ready For Approval / Approved
+- 是否可以进入 Agent 环境初始化：Yes / No
+- 原因：
+
+## 1. 四类未知分析
+
+### Known Knowns
+- 目标：
+- 范围：
+- 非目标：
+- 约束：
+- 验收标准：
+
+### Known Unknowns
+| 问题 | 为什么重要 | 用户回答 | 对执行方案的影响 |
+|---|---|---|---|
+
+### Unknown Knowns
+| 可能的隐性偏好 | 选项 | 取舍 | 需要用户选择吗 |
+|---|---|---|---|
+
+### Unknown Unknowns
+| 风险 | 为什么重要 | 影响等级 | 建议处理 | 是否需要确认 |
+|---|---|---|---|---|
+
+## 2. 推荐场景
+- 场景：A. 从零开发项目 / MVP；B. 已有项目加新特性；C. 项目重构；D. 代码迁移 / 架构迁移；E. Bug 定位与修复；F. 混合场景 / 无法判断
 - 理由：
 
-## 推荐等级
-- 等级：
+## 3. 推荐等级
+- 等级：S / M / L / XL
 - 理由：
 
-## 主要风险
-- ...
+等级参考：
+- S：单文件、小修复、低风险、容易验证。
+- M：少量文件、常规功能或 bug、有明确验收方式。
+- L：多模块、行为变化明显、涉及权限/数据/兼容性/核心路径。
+- XL：迁移、安全、架构替换、数据语义变化、不可逆或难回滚操作。
 
-## 建议 ECC 配置
-- Hook Profile：
-- CodeGraph：
+## 4. 建议 ECC 能力组合
+- Hook Profile：minimal / standard / strict
+- CodeGraph：需要 / 不需要；理由：
 - Commands：
 - Agents：
 - Workflows：
 - MCP：
 - Checkpoint：
 
-## 建议执行流程
-- 建议使用哪个五类场景 Prompt：
-- 是否需要先补充信息：
-- 是否需要人工审批：
+## 5. Agent 派发建议
+- 探索类 Agent：
+- implementer / coder Agent：
+- build-fix Agent：
+- code-reviewer：
+- security-reviewer：
+- performance-reviewer：
+- docs-lookup：
+- verify / e2e Agent：
+- 哪些 Agent 可写：
+- 哪些 Agent 只读：
 
-## 需要我确认的问题
+## 6. 停止条件
+- ...
+
+## 7. 分诊清晰度
+| 维度 | High / Medium / Low | 说明 |
+|---|---|---|
+| 目标 | | |
+| 范围 | | |
+| 风险 | | |
+| 验证方式 | | |
+
+## 8. 是否允许结束分诊
+只有满足以下条件，才能进入下一阶段：
+- 目标和非目标已经明确。
+- 场景类型已经明确，或混合场景已拆分。
+- S/M/L/XL 等级已有理由。
+- 高风险项已经列出并有处理策略。
+- 至少有一个可观察验证方式。
+- 需要用户选择的问题已经被确认。
+- 停止条件已经明确。
+
+结论：可以 / 不可以
+理由：
+
+## 9. 需要我确认的问题
 1. ...
 2. ...
 3. ...
 
-在我明确回复“确认按此分诊继续”之前，不要进入实现阶段。
+## 10. 下一步
+- 如果用户确认：进入 Agent 环境初始化。
+- 如果用户修改：重新分诊。
+- 如果仍不清楚：继续提问。
+
+在我明确回复“确认按此分诊继续”之前，不要进入下一阶段。
 ```
 
 ### 10.2 Agent 环境初始化 Prompt：按任务裁剪 ECC 能力
@@ -601,27 +666,168 @@ Agent 环境初始化：裁剪 rules / hooks / MCP / agents / workflows
 在我确认这份 Agent 环境初始化方案前，不要进入五大场景执行流程。
 ```
 
-### 10.3 自适应模板通用规则
+### 10.3 文档初始化 Prompt：把任务约束落成文档
 
-用户确认分诊结果和环境方案后，再进入具体场景。五类场景模板都遵守下面规则：
+任务分诊解决“做什么、风险多大”；Agent 环境初始化解决“用哪些 ECC 能力”；文档初始化解决“后续空白上下文 Agent 依据什么执行”。
+
+文档初始化的目标：
+
+1. 让人提前审批 PRD、设计、API、schema、验收清单等关键内容。
+2. 把聊天上下文压缩成可读取的任务文档，方便空白上下文 Agent 接力。
+3. 为交付汇报、发版说明和 `/ecc:learn-eval` 提供材料。
+4. 避免 Agent 依赖长对话记忆，降低跑偏概率。
+
+推荐目录分三类：
 
 ```text
-请根据“ECC 任务分诊结果”和“Agent 环境初始化方案”，进入对应场景流程。
+releases/                         # for human：发版说明、配置、DDL、回滚说明
+  <version-or-date>/
+    release-notes.md
+    migration-notes.md
+    config-changes.md
+    ddl.sql
+
+docs/                             # for human：长期项目文档
+  project-brief.md
+  PRD.md
+  architecture.md
+  api.md
+  schema.md
+  ui-spec.md
+  checklist.md
+
+.claude/runs/<date>-<task-slug>/   # for agent：本次任务运行记录
+  diagnosis.md
+  agent-environment.md
+  document-initialization.md
+  implementation-plan.md
+  progress.md
+  implementation-notes.md
+  delivery-report.md
+
+agent_improvement/                 # for agent：候选学习资产
+  from_conversation.md
+  conversations/
+  potential-skills/
+```
+
+文档初始化也要按 S/M/L/XL 自适应：
+
+| 等级 | 文档策略 |
+| --- | --- |
+| S | 不创建文档，最终回复说明结果即可 |
+| M | 生成 `diagnosis.md`、`implementation-plan.md`；必要时补 `checklist.md` 或 `implementation-notes.md` |
+| L | 创建任务运行目录；按影响面更新 PRD、architecture、api、schema、checklist |
+| XL | 强制文档先行；`docs/`、`releases/`、`.claude/runs/` 都按需齐全，审批后执行 |
+
+关键规则：
+
+- 不要默认生成全套文档，只生成当前任务真正需要的文档。
+- 同一个文档同一阶段只允许一个 owner Agent 写；专家 Agent 可以给建议，但由 owner 合并。
+- 不保存 secrets、token、真实用户隐私或生产敏感数据。
+- 文档是约束源，但不是不可质疑的真理；如果文档与代码、测试或真实系统行为冲突，必须暂停确认。
+- `.claude/runs/` 默认是过程资产；长期价值内容再晋升到 `docs/`、`rules/`、`skills/` 或 `workflows/`。
+- `agent_improvement/from_conversation.md` 必须短，只保留稳定偏好、项目特色和反复踩坑；一次性任务细节放 `conversations/` 摘要。
+- `agent_improvement/potential-skills/` 是候选区，不自动生效；人工确认后再复制到 Claude skills 目录。
+
+```text
+请先不要实现。请根据已经确认的“ECC 任务分诊结果”和“Agent 环境初始化方案”，生成本任务的文档初始化方案。
+
+任务分诊结果：
+[粘贴 diagnosis]
+
+Agent 环境初始化方案：
+[粘贴 agent-environment]
+
+请判断本任务需要创建或更新哪些文档。不要默认生成全套文档，只生成当前任务真正需要的文档。
+
+候选目录：
+
+1. releases/，面向人：
+   - release-notes.md：发版说明、目的、变更、配置、DDL、回滚说明。
+
+2. docs/，面向人和团队：
+   - project-brief.md：项目说明。
+   - PRD.md：产品需求文档。
+   - architecture.md：系统设计文档。
+   - api.md：API 文档。
+   - schema.md：数据库设计文档。
+   - ui-spec.md：设计稿或 UI 规格。
+   - checklist.md：验收清单。
+
+3. .claude/runs/<date>-<task-slug>/，面向 Agent 执行：
+   - diagnosis.md：任务分诊结果。
+   - agent-environment.md：Agent 环境初始化方案。
+   - document-initialization.md：文档初始化方案。
+   - implementation-plan.md：实施计划。
+   - progress.md：进度记录。
+   - implementation-notes.md：Agent 审计日志。
+   - delivery-report.md：交付报告。
+
+4. agent_improvement/，面向 Agent 学习：
+   - from_conversation.md：短小、稳定、跨任务的用户偏好和项目特色。
+   - conversations/：每次沟通的脱敏摘要。
+   - potential-skills/：`/ecc:learn` 或 `/ecc:learn-eval` 生成的候选技能，人工确认后再晋升。
+
+请输出：
+
+# 文档初始化方案
+
+## 文档级别
+- S/M/L/XL 对应的文档策略：
+- 本任务建议：
+
+## 需要创建或更新的文档
+
+| 路径 | 受众 | 目的 | 是否必须 | 推荐 Agent | 是否需要人审 |
+|---|---|---|---:|---|---:|
+
+## 不需要的文档
+- ...
+
+## 文档写入原则
+- 同一文档同一阶段只允许一个 owner Agent 写。
+- 专家 Agent 可以给建议，但由 owner Agent 合并。
+- 不保存 secrets、token、真实用户隐私、生产敏感数据。
+- 如果文档与代码、测试或真实系统行为冲突，暂停确认。
+- 过程文档默认不提交；长期价值内容再晋升到 docs、rules、skills 或 workflows。
+
+## 给空白上下文 Agent 的启动材料
+- 必读：
+- 按需读：
+- 不读：
+
+## 需要用户审批的内容
+1. ...
+2. ...
+3. ...
+
+在我确认文档初始化方案前，不要进入五大场景执行流程。
+```
+
+### 10.4 自适应模板通用规则
+
+用户确认分诊结果、环境方案和文档初始化方案后，再进入具体场景。五类场景模板都遵守下面规则：
+
+```text
+请根据“ECC 任务分诊结果”、“Agent 环境初始化方案”和“文档初始化方案”，进入对应场景流程。
 
 自适应规则：
 1. 按分诊结果中的 S/M/L/XL 等级调整流程强度。
 2. 只启用环境方案建议的 ECC 能力，不默认全量启用。
-3. 按环境方案决定是否使用 CodeGraph、子 Agent、workflow、MCP、checkpoint。
+3. 按文档初始化方案决定需要读取、创建或更新哪些文档。
+4. 按环境方案决定是否使用 CodeGraph、子 Agent、workflow、MCP、checkpoint。
 4. ECC 插件命令使用 `/ecc:` 前缀；如果本地命令名称不同，以 `/help` 为准。
 5. 默认遵循“单写入责任人”原则：同一阶段只允许一个 Agent 负责同一批文件的写入。
 6. 写入责任人可以是主 Agent，也可以是专门的 implementer / coder Agent。
 7. 探索、文档、审查、安全、性能类 Agent 默认只读，只输出结论、风险和建议。
 8. build-fix、refactor、migration 类 Agent 可以写，但必须限定修改范围、验证命令和停止条件。
 9. 如果需要多个写入 Agent，必须先按模块/文件边界拆分，并由主 Agent 汇总集成和最终验收。
-10. 如果执行中发现风险高于分诊结果，自动升级等级并暂停确认。
-11. 如果执行中发现风险低于分诊结果，可以建议降级，但不能擅自跳过已确认的门禁。
-12. 所有偏离分诊结果或环境方案的动作，必须写入 implementation-notes。
-13. 任务结束前必须执行学习判断：优先使用 `/ecc:learn-eval` 评估是否有可复用经验；轻量场景可使用 `/ecc:learn`。
+11. 如果执行中发现风险高于分诊结果，自动升级等级并暂停确认。
+12. 如果执行中发现风险低于分诊结果，可以建议降级，但不能擅自跳过已确认的门禁。
+13. 所有偏离分诊结果、环境方案或文档初始化方案的动作，必须写入 implementation-notes。
+14. 如果初始化文档与当前代码、测试或真实系统行为冲突，暂停确认，不要擅自选择一边。
+15. 任务结束前必须执行学习判断：优先使用 `/ecc:learn-eval` 评估是否有可复用经验；轻量场景可使用 `/ecc:learn`。
 ```
 
 学习命令的定位：
@@ -641,16 +847,19 @@ Agent 环境初始化：裁剪 rules / hooks / MCP / agents / workflows
 
 不要沉淀：拼写修复、一次性线上故障、临时 API 抖动、只对当前对话有意义的信息。
 
-### 10.4 从零开发项目 / MVP 自适应 Prompt
+### 10.5 从零开发项目 / MVP 自适应 Prompt
 
 ```text
-请根据下面两份结果，进入“从零开发项目 / MVP”流程。
+请根据下面三份结果，进入“从零开发项目 / MVP”流程。
 
 任务分诊结果：
 [粘贴任务分诊结果]
 
 Agent 环境初始化方案：
 [粘贴环境初始化方案]
+
+文档初始化方案：
+[粘贴文档初始化方案]
 
 任务信息：
 目标：从零实现 [项目/产品] 的第一个可运行版本。
@@ -682,16 +891,19 @@ Agent 派发：
 停止条件：遇到外部发布、真实支付/短信/邮件、生产数据、不可逆操作时暂停确认。
 ```
 
-### 10.5 已有项目加新特性自适应 Prompt
+### 10.6 已有项目加新特性自适应 Prompt
 
 ```text
-请根据下面两份结果，进入“已有项目加新特性”流程。
+请根据下面三份结果，进入“已有项目加新特性”流程。
 
 任务分诊结果：
 [粘贴任务分诊结果]
 
 Agent 环境初始化方案：
 [粘贴环境初始化方案]
+
+文档初始化方案：
+[粘贴文档初始化方案]
 
 任务信息：
 目标：在现有项目中实现 [功能]。
@@ -722,16 +934,19 @@ Agent 派发：
 7. Learn：把新的项目约定或重复模式记录为 skill / rule 候选；如涉及权限、数据或项目约定，优先运行 `/ecc:learn-eval`。
 ```
 
-### 10.6 项目重构自适应 Prompt
+### 10.7 项目重构自适应 Prompt
 
 ```text
-请根据下面两份结果，进入“项目重构”流程。
+请根据下面三份结果，进入“项目重构”流程。
 
 任务分诊结果：
 [粘贴任务分诊结果]
 
 Agent 环境初始化方案：
 [粘贴环境初始化方案]
+
+文档初始化方案：
+[粘贴文档初始化方案]
 
 任务信息：
 目标：把 [旧结构/问题] 调整为 [新结构/目标]。
@@ -762,16 +977,19 @@ Agent 派发：
 7. Learn：把稳定重构规则沉淀为 rule / skill / workflow 候选；如果形成了可复用重构策略，运行 `/ecc:learn-eval` 做质量门禁。
 ```
 
-### 10.7 代码迁移 / 架构迁移自适应 Prompt
+### 10.8 代码迁移 / 架构迁移自适应 Prompt
 
 ```text
-请根据下面两份结果，进入“代码迁移 / 架构迁移”流程。
+请根据下面三份结果，进入“代码迁移 / 架构迁移”流程。
 
 任务分诊结果：
 [粘贴任务分诊结果]
 
 Agent 环境初始化方案：
 [粘贴环境初始化方案]
+
+文档初始化方案：
+[粘贴文档初始化方案]
 
 任务信息：
 迁移目标：从 [旧技术/旧 API/旧目录结构] 迁移到 [新目标]。
@@ -805,16 +1023,19 @@ Agent 派发：
 停止条件：涉及数据迁移、生产配置、不可逆删除、跨系统发布或验证差异无法解释时必须暂停确认。
 ```
 
-### 10.8 Bug 定位与修复自适应 Prompt
+### 10.9 Bug 定位与修复自适应 Prompt
 
 ```text
-请根据下面两份结果，进入“Bug 定位与修复”流程。
+请根据下面三份结果，进入“Bug 定位与修复”流程。
 
 任务分诊结果：
 [粘贴任务分诊结果]
 
 Agent 环境初始化方案：
 [粘贴环境初始化方案]
+
+文档初始化方案：
+[粘贴文档初始化方案]
 
 任务信息：
 现象：[实际发生了什么]。
@@ -849,7 +1070,7 @@ Agent 派发：
 如果无法复现，不要猜修；请给出缺失信息和下一步诊断探针。
 ```
 
-### 10.9 最终报告模板
+### 10.10 最终报告模板
 
 ```markdown
 # Delivery Report
@@ -865,6 +1086,11 @@ Agent 派发：
 
 ## Agent Environment
 - 本次启用 / 避免的 ECC 能力、Agent、MCP、hooks
+
+## Document Initialization
+- 本次创建 / 更新的 docs、releases、run 文档
+- 空白上下文 Agent 实际读取的启动材料
+- 文档与代码 / 测试 / 真实系统行为是否存在冲突
 
 ## Key Decisions
 - 决策与原因
