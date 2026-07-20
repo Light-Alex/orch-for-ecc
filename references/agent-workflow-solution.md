@@ -416,6 +416,14 @@ Agent 环境初始化：裁剪 rules / hooks / MCP / agents / workflows
 
 只有当目标、范围、风险和验证方式达到可执行清晰度，才能进入 Agent 环境初始化。分诊不清楚时，继续访谈；不要为了推进流程而假装已经明确。
 
+阶段产物：
+
+- 本阶段最终产物是 `.claude/runs/<date>-<task-slug>/diagnosis.md`。
+- `<date>` 使用当前日期，`<task-slug>` 使用简短英文 kebab-case，例如 `order-csv-export`。
+- 分诊未达到 `Ready For Approval` 前，只输出草案，不写入最终文件。
+- 用户确认后，再把确认版写入 `diagnosis.md`。
+- 后续 Agent 环境初始化、文档初始化和五大场景执行都必须读取 `diagnosis.md`。
+
 ```text
 请先不要实现。请作为 ECC 工作流路由器，对我的任务做“任务分诊与未知收敛”。
 
@@ -440,7 +448,7 @@ Agent 环境初始化：裁剪 rules / hooks / MCP / agents / workflows
 - 完成未知收敛后，再给出场景、等级、ECC 能力、Agent 派发和停止条件。
 - 在我确认前，不要进入 Agent 环境初始化、文档初始化或实现阶段。
 
-请按以下格式输出，不要开始实现：
+请按以下格式输出，不要开始实现。分诊达到 Ready For Approval 后，请同时准备 `.claude/runs/<date>-<task-slug>/diagnosis.md` 草案；用户确认前不要写入最终文件：
 
 # ECC 任务分诊结果
 
@@ -549,13 +557,20 @@ Agent 环境初始化：裁剪 rules / hooks / MCP / agents / workflows
 - **软初始化**：通过 Prompt 约束本次任务只使用必要能力。
 - **硬初始化**：通过项目配置、环境变量、`/mcp`、hooks 设置真正裁剪运行环境。
 
+阶段产物：
+
+- 本阶段最终产物是 `.claude/runs/<date>-<task-slug>/agent-environment.md`。
+- 输入来源是已经确认的 `.claude/runs/<date>-<task-slug>/diagnosis.md`。
+- 用户确认前只输出草案；用户确认后再写入 `agent-environment.md`。
+- 后续文档初始化和五大场景执行必须读取 `diagnosis.md` 与 `agent-environment.md`。
+
 注意：Prompt 不能把当前会话里已经加载的上下文物理删除。如果当前会话已经明显过载或被无关上下文污染，建议新开会话，并把分诊结果和环境初始化方案作为启动 Prompt。
 
 ```text
-请先不要进入实现。请根据已经确认的“ECC 任务分诊结果”，为当前任务生成一份任务级 Agent 环境初始化方案。
+请先不要进入实现。请根据已经确认的 `.claude/runs/<date>-<task-slug>/diagnosis.md`，为当前任务生成一份任务级 Agent 环境初始化方案。
 
 任务分诊结果：
-[粘贴任务分诊结果]
+[粘贴或读取 diagnosis.md]
 
 请基于当前任务裁剪 ECC 能力，而不是默认全量启用。
 
@@ -607,7 +622,7 @@ Agent 环境初始化：裁剪 rules / hooks / MCP / agents / workflows
    - 哪些信息缺失会影响是否启用某些 ECC 能力？
    - 需要先探索哪些内容再决定？
 
-请按以下格式输出，不要开始实现：
+请按以下格式输出，不要开始实现。请同时准备 `.claude/runs/<date>-<task-slug>/agent-environment.md` 草案；用户确认前不要写入最终文件：
 
 # 当前任务 Agent 环境初始化方案
 
@@ -670,6 +685,14 @@ Agent 环境初始化：裁剪 rules / hooks / MCP / agents / workflows
 
 任务分诊解决“做什么、风险多大”；Agent 环境初始化解决“用哪些 ECC 能力”；文档初始化解决“后续空白上下文 Agent 依据什么执行”。
 
+文档初始化的输入输出：
+
+- 输入：`.claude/runs/<date>-<task-slug>/diagnosis.md` 和 `.claude/runs/<date>-<task-slug>/agent-environment.md`。
+- 输出：`.claude/runs/<date>-<task-slug>/document-initialization.md`，以及按需创建或更新的 `docs/*`、`releases/*`。
+- `diagnosis.md` 决定要写什么文档：PRD、architecture、api、schema、checklist、release-notes 等。
+- `agent-environment.md` 决定如何写这些文档：由哪些专家 Agent 起草、哪些上下文可读、哪些 MCP 可用、哪些文档必须脱敏、哪些文档给空白上下文 Agent 读取。
+- 如果文档初始化发现 `agent-environment.md` 不足或冲突，应暂停并回退到 Agent 环境初始化阶段重新确认。
+
 文档初始化的目标：
 
 1. 让人提前审批 PRD、设计、API、schema、验收清单等关键内容。
@@ -731,13 +754,13 @@ agent_improvement/                 # for agent：候选学习资产
 - `agent_improvement/potential-skills/` 是候选区，不自动生效；人工确认后再复制到 Claude skills 目录。
 
 ```text
-请先不要实现。请根据已经确认的“ECC 任务分诊结果”和“Agent 环境初始化方案”，生成本任务的文档初始化方案。
+请先不要实现。请根据已经确认的 `.claude/runs/<date>-<task-slug>/diagnosis.md` 和 `.claude/runs/<date>-<task-slug>/agent-environment.md`，生成本任务的文档初始化方案。
 
 任务分诊结果：
-[粘贴 diagnosis]
+[粘贴或读取 diagnosis.md]
 
 Agent 环境初始化方案：
-[粘贴 agent-environment]
+[粘贴或读取 agent-environment.md]
 
 请判断本任务需要创建或更新哪些文档。不要默认生成全套文档，只生成当前任务真正需要的文档。
 
@@ -797,12 +820,17 @@ Agent 环境初始化方案：
 - 按需读：
 - 不读：
 
+## 环境方案反馈
+- `agent-environment.md` 是否足够支撑文档初始化：
+- 是否需要回退调整 Agent 环境：
+- 原因：
+
 ## 需要用户审批的内容
 1. ...
 2. ...
 3. ...
 
-在我确认文档初始化方案前，不要进入五大场景执行流程。
+在我确认文档初始化方案前，不要进入五大场景执行流程。确认后，将确认版写入 `.claude/runs/<date>-<task-slug>/document-initialization.md`。
 ```
 
 ### 10.4 自适应模板通用规则
@@ -813,19 +841,19 @@ Agent 环境初始化方案：
 请根据“ECC 任务分诊结果”、“Agent 环境初始化方案”和“文档初始化方案”，进入对应场景流程。
 
 自适应规则：
-1. 按分诊结果中的 S/M/L/XL 等级调整流程强度。
-2. 只启用环境方案建议的 ECC 能力，不默认全量启用。
-3. 按文档初始化方案决定需要读取、创建或更新哪些文档。
-4. 按环境方案决定是否使用 CodeGraph、子 Agent、workflow、MCP、checkpoint。
-4. ECC 插件命令使用 `/ecc:` 前缀；如果本地命令名称不同，以 `/help` 为准。
-5. 默认遵循“单写入责任人”原则：同一阶段只允许一个 Agent 负责同一批文件的写入。
-6. 写入责任人可以是主 Agent，也可以是专门的 implementer / coder Agent。
-7. 探索、文档、审查、安全、性能类 Agent 默认只读，只输出结论、风险和建议。
-8. build-fix、refactor、migration 类 Agent 可以写，但必须限定修改范围、验证命令和停止条件。
-9. 如果需要多个写入 Agent，必须先按模块/文件边界拆分，并由主 Agent 汇总集成和最终验收。
+1. 按 `diagnosis.md` 中的 S/M/L/XL 等级调整流程强度。
+2. 只启用 `agent-environment.md` 建议的 ECC 能力，不默认全量启用。
+3. 按 `document-initialization.md` 决定需要读取、创建或更新哪些文档。
+4. 按 `agent-environment.md` 决定是否使用 CodeGraph、子 Agent、workflow、MCP、checkpoint。
+5. ECC 插件命令使用 `/ecc:` 前缀；如果本地命令名称不同，以 `/help` 为准。
+6. 默认遵循“单写入责任人”原则：同一阶段只允许一个 Agent 负责同一批文件的写入。
+7. 写入责任人可以是主 Agent，也可以是专门的 implementer / coder Agent。
+8. 探索、文档、审查、安全、性能类 Agent 默认只读，只输出结论、风险和建议。
+9. build-fix、refactor、migration 类 Agent 可以写，但必须限定修改范围、验证命令和停止条件。
+10. 如果需要多个写入 Agent，必须先按模块/文件边界拆分，并由主 Agent 汇总集成和最终验收。
 11. 如果执行中发现风险高于分诊结果，自动升级等级并暂停确认。
 12. 如果执行中发现风险低于分诊结果，可以建议降级，但不能擅自跳过已确认的门禁。
-13. 所有偏离分诊结果、环境方案或文档初始化方案的动作，必须写入 implementation-notes。
+13. 所有偏离 `diagnosis.md`、`agent-environment.md` 或 `document-initialization.md` 的动作，必须写入 implementation-notes。
 14. 如果初始化文档与当前代码、测试或真实系统行为冲突，暂停确认，不要擅自选择一边。
 15. 任务结束前必须执行学习判断：优先使用 `/ecc:learn-eval` 评估是否有可复用经验；轻量场景可使用 `/ecc:learn`。
 ```
