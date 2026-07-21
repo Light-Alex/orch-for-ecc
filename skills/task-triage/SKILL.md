@@ -1,11 +1,19 @@
 ---
 name: task-triage
-summary: 任务分诊与四类未知收敛
-trigger: /task-triage
-language: zh-CN
-maturity: experimental
+description: 任务分诊与四类未知收敛；在实现前明确目标、范围、风险、场景、等级、ECC 能力组合和停止条件。
+disable-model-invocation: true
+argument-hint: "[原始任务描述、目标、约束或验收标准]"
+metadata:
+  language: zh-CN
+  maturity: experimental
+  scope: project
+  role: orchestrator
+  dependency: ecc-preferred
+  triggerMode: explicit-only
+  scenario: task-triage
+  requires: []
+  capabilityMap: orchestration/ecc-capability-map.md
 ---
-
 # 任务分诊
 
 > 触发方式：仅当用户输入 `/task-triage` 时使用。
@@ -37,7 +45,7 @@ maturity: experimental
 5. 必须做 blind spot pass，检查权限、安全、数据、迁移、回滚、性能、兼容性、测试可行性、外部副作用、文档冲突、发布影响、多 Agent 写入冲突、上下文污染和 MCP 必要性。
 6. 已有项目任务可以建议使用 CodeGraph 或只读探索 Agent 确认影响面；本阶段不要写代码。
 7. 用户确认前，不写入最终 `diagnosis.md`，不进入下一阶段。
-8. 优先参考 `skills/shared/ecc-capability-map.md` 查询当前可用 ECC 能力，并在“建议能力组合”中显式列出推荐调用的 `/ecc:*` 指令。
+8. 优先参考 `orchestration/ecc-capability-map.md` 查询当前可用 ECC 能力，并在“建议能力组合”中显式列出推荐调用的 `/ecc:*` 指令。
 9. 如果推荐 ECC 能力缺失、改名或不适用，必须给出 Plan B，并说明替代方案的风险和能力缺口。
 
 ## 四类未知

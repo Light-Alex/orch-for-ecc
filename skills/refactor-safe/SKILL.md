@@ -1,11 +1,19 @@
 ---
 name: refactor-safe
-summary: 保持行为不变的安全重构工作流
-trigger: /refactor-safe
-language: zh-CN
-maturity: experimental
+description: 保持行为不变的安全重构工作流；建立绿色测试基线，小步调整结构并持续验证。
+disable-model-invocation: true
+argument-hint: "[已确认执行材料：分诊、环境、文档方案、重构范围和必须保持不变的行为]"
+metadata:
+  language: zh-CN
+  maturity: experimental
+  scope: project
+  role: orchestrator
+  dependency: ecc-preferred
+  triggerMode: explicit-only
+  scenario: refactor-safe
+  requires: [task-triage, agent-env, task-docs]
+  capabilityMap: orchestration/ecc-capability-map.md
 ---
-
 # 安全重构
 
 > 触发方式：仅当用户输入 `/refactor-safe` 时使用。
@@ -31,9 +39,9 @@ maturity: experimental
 3. 把重构拆成可验证的小阶段，每阶段只改变一种结构维度。
 4. 每阶段前后运行相关验证；失败就回滚该阶段或做最小修复。
 5. 多 Agent 写入必须按目录或模块分区，并由主 Agent 统一集成验证。
-6. 执行前参考 `skills/shared/ecc-capability-map.md` 选择重构规划、清理、验证和审查相关 ECC 能力，并显式列出推荐调用的 `/ecc:*` 指令。
+6. 执行前参考 `orchestration/ecc-capability-map.md` 选择重构规划、清理、验证和审查相关 ECC 能力，并显式列出推荐调用的 `/ecc:*` 指令。
 7. 如果 ECC 能力缺失、改名或不适用，按 Plan B 降级，并说明替代方案、能力缺口和风险。
-8. 执行时引用 `skills/shared/rules.md`，结束时参考 `skills/shared/report.md`。
+8. 执行时引用 `orchestration/rules.md`，结束时参考 `orchestration/report-template.md`。
 
 ## 流程
 

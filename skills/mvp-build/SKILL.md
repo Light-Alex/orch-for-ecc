@@ -1,11 +1,19 @@
 ---
 name: mvp-build
-summary: 从零开发 / MVP 工作流
-trigger: /mvp-build
-language: zh-CN
-maturity: experimental
+description: 从零开发或 MVP 工作流；收敛 PRD、MVP 边界和垂直切片，再搭建骨架、实现核心路径并验证。
+disable-model-invocation: true
+argument-hint: "[已确认执行材料：分诊、环境、文档方案、MVP 目标与非目标]"
+metadata:
+  language: zh-CN
+  maturity: experimental
+  scope: project
+  role: orchestrator
+  dependency: ecc-preferred
+  triggerMode: explicit-only
+  scenario: mvp-build
+  requires: [task-triage, agent-env, task-docs]
+  capabilityMap: orchestration/ecc-capability-map.md
 ---
-
 # 从零开发 / MVP
 
 > 触发方式：仅当用户输入 `/mvp-build` 时使用。
@@ -31,9 +39,9 @@ maturity: experimental
 3. 不默认启用全部 MCP；只有需要 GitHub、浏览器、部署平台或外部系统时才启用。
 4. 不让多个 Agent 同时修改同一批项目骨架文件。
 5. 遇到外部发布、真实支付、短信、邮件、生产数据、不可逆操作时暂停确认。
-6. 执行前参考 `skills/shared/ecc-capability-map.md` 选择 MVP、项目初始化、实现、验证和文档相关 ECC 能力，并显式列出推荐调用的 `/ecc:*` 指令。
+6. 执行前参考 `orchestration/ecc-capability-map.md` 选择 MVP、项目初始化、实现、验证和文档相关 ECC 能力，并显式列出推荐调用的 `/ecc:*` 指令。
 7. 如果 ECC 能力缺失、改名或不适用，按 Plan B 降级，并说明替代方案、能力缺口和风险。
-8. 执行时引用 `skills/shared/rules.md`，结束时参考 `skills/shared/report.md`。
+8. 执行时引用 `orchestration/rules.md`，结束时参考 `orchestration/report-template.md`。
 
 ## 流程
 

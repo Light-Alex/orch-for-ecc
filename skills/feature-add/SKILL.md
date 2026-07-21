@@ -1,11 +1,19 @@
 ---
 name: feature-add
-summary: 已有项目加新特性工作流
-trigger: /feature-add
-language: zh-CN
-maturity: experimental
+description: 已有项目加新特性工作流；先探索相似实现、调用链、权限点和测试样式，再做必要改动并验证。
+disable-model-invocation: true
+argument-hint: "[已确认执行材料：分诊、环境、文档方案、目标功能和约束]"
+metadata:
+  language: zh-CN
+  maturity: experimental
+  scope: project
+  role: orchestrator
+  dependency: ecc-preferred
+  triggerMode: explicit-only
+  scenario: feature-add
+  requires: [task-triage, agent-env, task-docs]
+  capabilityMap: orchestration/ecc-capability-map.md
 ---
-
 # 已有项目加新特性
 
 > 触发方式：仅当用户输入 `/feature-add` 时使用。
@@ -31,9 +39,9 @@ maturity: experimental
 3. 影响面不清楚时，先派只读探索，不直接写代码。
 4. 涉及认证、权限、计费、数据写入、数据导出或外部副作用时，升级风险并暂停确认。
 5. 多个 Agent 不应并行修改同一批文件；如需并行写入，必须先按模块或文件边界拆分。
-6. 执行前参考 `skills/shared/ecc-capability-map.md` 选择探索、实现、构建修复、审查和质量门禁相关 ECC 能力，并显式列出推荐调用的 `/ecc:*` 指令。
+6. 执行前参考 `orchestration/ecc-capability-map.md` 选择探索、实现、构建修复、审查和质量门禁相关 ECC 能力，并显式列出推荐调用的 `/ecc:*` 指令。
 7. 如果 ECC 能力缺失、改名或不适用，按 Plan B 降级，并说明替代方案、能力缺口和风险。
-8. 执行时引用 `skills/shared/rules.md`，结束时参考 `skills/shared/report.md`。
+8. 执行时引用 `orchestration/rules.md`，结束时参考 `orchestration/report-template.md`。
 
 ## 流程
 

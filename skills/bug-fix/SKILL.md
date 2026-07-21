@@ -1,11 +1,19 @@
 ---
 name: bug-fix
-summary: Bug 定位与修复工作流
-trigger: /bug-fix
-language: zh-CN
-maturity: experimental
+description: Bug 定位与修复工作流；先复现，再诊断根因，做最小修复，并用回归证据验证。
+disable-model-invocation: true
+argument-hint: "[现象、预期、复现步骤、日志、环境或相关路径]"
+metadata:
+  language: zh-CN
+  maturity: experimental
+  scope: project
+  role: orchestrator
+  dependency: ecc-preferred
+  triggerMode: explicit-only
+  scenario: bug-fix
+  requires: [task-triage, agent-env, task-docs]
+  capabilityMap: orchestration/ecc-capability-map.md
 ---
-
 # Bug 定位与修复
 
 > 触发方式：仅当用户输入 `/bug-fix` 时使用。
@@ -32,9 +40,9 @@ maturity: experimental
 4. 不删除测试来让验证通过。
 5. 影响核心数据、安全、认证、权限时升级风险并暂停确认。
 6. 无法复现时，不猜修；输出缺失信息和下一步诊断探针。
-7. 执行前参考 `skills/shared/ecc-capability-map.md` 选择复现规划、构建修复、防回归、审查和质量门禁相关 ECC 能力，并显式列出推荐调用的 `/ecc:*` 指令。
+7. 执行前参考 `orchestration/ecc-capability-map.md` 选择复现规划、构建修复、防回归、审查和质量门禁相关 ECC 能力，并显式列出推荐调用的 `/ecc:*` 指令。
 8. 如果 ECC 能力缺失、改名或不适用，按 Plan B 降级，并说明替代方案、能力缺口和风险。
-9. 执行时引用 `skills/shared/rules.md`，结束时参考 `skills/shared/report.md`。
+9. 执行时引用 `orchestration/rules.md`，结束时参考 `orchestration/report-template.md`。
 
 ## 流程
 

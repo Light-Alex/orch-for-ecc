@@ -1,11 +1,19 @@
 ---
 name: migrate-safe
-summary: 代码或架构迁移工作流
-trigger: /migrate-safe
-language: zh-CN
-maturity: experimental
+description: 代码或架构迁移工作流；默认高风险处理，先盘点兼容矩阵和代表性切片，再批量推进并保留回滚点。
+disable-model-invocation: true
+argument-hint: "[已确认执行材料：分诊、环境、文档方案、迁移前后目标和回滚要求]"
+metadata:
+  language: zh-CN
+  maturity: experimental
+  scope: project
+  role: orchestrator
+  dependency: ecc-preferred
+  triggerMode: explicit-only
+  scenario: migrate-safe
+  requires: [task-triage, agent-env, task-docs]
+  capabilityMap: orchestration/ecc-capability-map.md
 ---
-
 # 安全迁移
 
 > 触发方式：仅当用户输入 `/migrate-safe` 时使用。
@@ -32,9 +40,9 @@ maturity: experimental
 4. 数据迁移必须有 dry-run、备份、回滚脚本或明确不可逆确认。
 5. 大迁移可分区写入，但必须按模块/文件边界拆分，并由主 Agent 统一集成。
 6. 数据迁移、生产配置、不可逆删除、跨系统发布或验证差异无法解释时必须暂停确认。
-7. 执行前参考 `skills/shared/ecc-capability-map.md` 选择迁移规划、分区执行、构建修复、审查、质量门禁和文档相关 ECC 能力，并显式列出推荐调用的 `/ecc:*` 指令。
+7. 执行前参考 `orchestration/ecc-capability-map.md` 选择迁移规划、分区执行、构建修复、审查、质量门禁和文档相关 ECC 能力，并显式列出推荐调用的 `/ecc:*` 指令。
 8. 如果 ECC 能力缺失、改名或不适用，按 Plan B 降级，并说明替代方案、能力缺口和风险。
-9. 执行时引用 `skills/shared/rules.md`，结束时参考 `skills/shared/report.md`。
+9. 执行时引用 `orchestration/rules.md`，结束时参考 `orchestration/report-template.md`。
 
 ## 流程
 

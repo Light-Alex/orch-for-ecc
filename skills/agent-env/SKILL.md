@@ -1,11 +1,19 @@
 ---
 name: agent-env
-summary: Agent 环境初始化
-trigger: /agent-env
-language: zh-CN
-maturity: experimental
+description: Agent 环境初始化；根据已确认的分诊结果裁剪上下文、ECC 能力、MCP、Agent、workflow、验证与审查策略。
+disable-model-invocation: true
+argument-hint: "[已确认的任务分诊结果]"
+metadata:
+  language: zh-CN
+  maturity: experimental
+  scope: project
+  role: orchestrator
+  dependency: ecc-preferred
+  triggerMode: explicit-only
+  scenario: agent-environment
+  requires: [task-triage]
+  capabilityMap: orchestration/ecc-capability-map.md
 ---
-
 # Agent 环境初始化
 
 > 触发方式：仅当用户输入 `/agent-env` 时使用。
@@ -33,7 +41,7 @@ maturity: experimental
 2. Prompt 不能物理删除当前会话已加载上下文；如果上下文污染严重，建议新开会话，并把分诊结果和环境方案作为启动材料。
 3. 用户确认前，只输出 `agent-environment.md` 草案。
 4. 如果环境方案发现分诊结果不足或风险等级不合理，应回退到 `/task-triage`。
-5. 环境初始化必须优先参考 `skills/shared/ecc-plugin.md` 和 `skills/shared/ecc-capability-map.md`，查询当前可用 `/ecc:*` 能力。
+5. 环境初始化必须优先参考 `orchestration/ecc-baseline.md` 和 `orchestration/ecc-capability-map.md`，查询当前可用 `/ecc:*` 能力。
 6. 如果存在匹配的 ECC 能力，应在命令策略、Agents、Workflows 或验证门禁中显式列出推荐调用的 `/ecc:*` 指令。
 7. 如果 ECC 能力缺失、改名或不适用，应按 Plan B 降级，并说明能力缺口、替代方案和风险。
 8. 命令、MCP、Agent 名称以当前项目实际可用能力为准，不把 `/ecc:*` 写成硬依赖。
@@ -60,7 +68,7 @@ maturity: experimental
 - ECC 能力调用计划：
   | 阶段 | 推荐 `/ecc:*` 指令 | 用途 | Plan B |
   |---|---|---|---|
-- 说明：优先查询 `skills/shared/ecc-capability-map.md` 和当前可用 ECC 能力；如果 ECC 能力缺失，按 Plan B 降级。
+- 说明：优先查询 `orchestration/ecc-capability-map.md` 和当前可用 ECC 能力；如果 ECC 能力缺失，按 Plan B 降级。
 
 ## Rules
 - 必须：
