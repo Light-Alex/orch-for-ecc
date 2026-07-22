@@ -156,6 +156,81 @@ ECC Agent 是 `/ecc:*` 指令之外的可见专项能力。指令型能力适合
 | 审查 | `/ecc:code-review`、`/ecc:security-scan` | 检查副作用和安全风险 | 内建 code-review / security-review |
 | 门禁 | `/ecc:quality-gate` | 汇总复现路径、测试和验证结果 | 手动运行相关验证命令 |
 
+## MCP 配置模板参考
+
+ECC 插件包含 MCP 配置模板库：
+
+```text
+mcp-configs/mcp-servers.json
+```
+
+这些模板不是默认启用能力，不代表当前环境已经配置，也不代表项目必须启用。它们用于 `/agent-env` 阶段按任务需要提出可选 MCP 配置建议。
+
+使用原则：
+
+1. 不默认启用任何 MCP。
+2. 不把 MCP 配置模板当成 ECC 运行时能力。
+3. 不检查用户是否已复制或启用这些 MCP。
+4. 不自动复制模板到 Claude Code settings。
+5. 涉及 token、API key、登录态、外部服务、本地服务或生产数据时，必须由用户手动配置并确认。
+6. `/agent-env` 只能提出建议，不能擅自写 settings、启用 MCP 或处理凭证。
+7. 为保护上下文窗口，建议保持启用 MCP 数量少于 10 个。
+
+### 模板分类
+
+| 类别 | MCP 配置模板 | 典型用途 | `/agent-env` 使用方式 |
+| --- | --- | --- | --- |
+| 成本 / 隐私 / 路由 | `nexus` | 本地成本、隐私代理、模型路由 | 需要成本统计、隐私遮蔽或路由策略时建议配置 |
+| 项目协作 | `jira`、`github`、`confluence` | issue、PR、repo、团队文档 | 需要访问协作平台上下文时建议配置 |
+| Web / 文档 / 搜索 | `firecrawl`、`exa-web-search`、`parallel-search`、`context7`、`cloudflare-docs`、`laraplugins` | 外部搜索、网页抓取、最新文档、插件检索 | 需要外部资料或最新文档时建议配置 |
+| 数据库 / 数据平台 | `supabase`、`clickhouse` | 数据库操作、分析查询 | 需要数据库上下文且用户确认访问边界时建议配置 |
+| 浏览器 / E2E | `playwright`、`browserbase`、`browser-use` | 浏览器自动化、云浏览器、Web 任务 | Web UI、E2E、可访问性或性能验证时建议配置 |
+| 部署 / 云平台 | `vercel`、`railway`、`cloudflare-workers-builds`、`cloudflare-workers-bindings`、`cloudflare-observability` | 部署、构建、绑定、观测 | 需要检查部署、构建或云平台状态时建议配置 |
+| 记忆 / 会话历史 | `memory`、`omega-memory`、`longhand`、`memxus`、`squish` | 记忆、历史检索、知识图谱 | 需要跨会话上下文且用户接受隐私边界时建议配置 |
+| 推理 / 规划 | `sequential-thinking` | 分步推理 | 需要外部 MCP 推理工具且用户确认时建议配置 |
+| 质量 / 评估 | `codescene`、`evalview` | 代码健康、Agent 回归评估 | 需要专项质量评估时建议配置 |
+| UI / 媒体 | `magic`、`fal-ai` | UI 组件、媒体生成 | 需要设计组件或媒体生成服务时建议配置 |
+| 文件系统 / 上下文优化 | `filesystem`、`token-optimizer` | 文件访问、上下文压缩 | 需要明确路径授权或上下文优化时建议配置 |
+| 多 Agent / 编排 | `devfleet` | 多 Agent worktree 编排 | 需要外部 Agent 编排服务时建议配置 |
+
+### 模板清单
+
+| MCP 配置模板 | 说明 |
+| --- | --- |
+| `nexus` | 本地成本 / 隐私代理。 |
+| `jira` | Jira issue tracking。 |
+| `github` | GitHub PR、issue、repo 操作。 |
+| `firecrawl` | Web scraping and crawling。 |
+| `supabase` | Supabase database operations。 |
+| `memory` | Persistent memory across sessions。 |
+| `omega-memory` | Persistent agent memory with semantic search。 |
+| `longhand` | Claude Code session history indexing。 |
+| `sequential-thinking` | Chain-of-thought reasoning MCP。 |
+| `vercel` | Vercel deployments and projects。 |
+| `railway` | Railway deployments。 |
+| `cloudflare-docs` | Cloudflare documentation search。 |
+| `cloudflare-workers-builds` | Cloudflare Workers builds。 |
+| `cloudflare-workers-bindings` | Cloudflare Workers bindings。 |
+| `cloudflare-observability` | Cloudflare observability / logs。 |
+| `clickhouse` | ClickHouse analytics queries。 |
+| `exa-web-search` | Web search and research via Exa API。 |
+| `parallel-search` | Parallel Web Search and fetch。 |
+| `context7` | Live documentation lookup。 |
+| `codescene` | CodeScene Code Health MCP。 |
+| `magic` | Magic UI components。 |
+| `memxus` | Universal persistent memory。 |
+| `filesystem` | Filesystem operations with configured paths。 |
+| `playwright` | Browser automation and testing via Playwright。 |
+| `fal-ai` | AI image / video / audio generation。 |
+| `browserbase` | Cloud browser sessions via Browserbase。 |
+| `browser-use` | AI browser agent for web tasks。 |
+| `devfleet` | Multi-agent orchestration。 |
+| `token-optimizer` | Token optimization and context reduction。 |
+| `laraplugins` | Laravel plugin discovery。 |
+| `confluence` | Confluence Cloud integration。 |
+| `evalview` | AI agent regression testing。 |
+| `squish` | Local-first persistent memory runtime。 |
+
 ## Plan B 顺序
 
 当推荐 ECC 能力不可用时，按以下顺序降级：

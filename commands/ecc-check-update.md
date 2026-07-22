@@ -37,7 +37,7 @@ metadata:
    - ECC 插件版本。
    - `/ecc:*` 指令是否可在当前 ECC skills / commands 中找到对应能力。
    - `ecc:*` Agent 是否可在当前 ECC agents 中找到对应能力。
-   - 当前项目关注的 MCP / hooks / LSP 摘要是否变化。
+   - 当前环境 ECC `mcp-configs/mcp-servers.json` 是否与 `orchestration/ecc-capability-map.md` 中的 MCP 配置模板清单一致。
 6. 输出检查结论：
    - 如果一致：报告当前环境 ECC 与项目基线一致，无需更新。
    - 如果不一致：报告不一致，列出差异点，并生成 update 计划。
@@ -47,156 +47,107 @@ metadata:
 
 优先使用命令和脚本收集事实，不手工猜测。
 
-~~~bash
-python - <<'PY'
-import json
-import re
-import subprocess
-from pathlib import Path
+```bash
+node scripts/ecc-check-update.js
+```
 
-ROOT = Path.cwd()
-BASELINE = ROOT / 'orchestration' / 'ecc-baseline.md'
-CAPABILITY_MAP = ROOT / 'orchestration' / 'ecc-capability-map.md'
-SKILLS_DIR = ROOT / 'skills'
-REQUIRED_PROJECT_FILES = [BASELINE, CAPABILITY_MAP]
+如需排查脚本解析细节，可使用：
 
+```bash
+node scripts/ecc-check-update.js --verbose
+```
 
-def run(cmd):
-    return subprocess.run(cmd, text=True, capture_output=True, check=False)
+查看脚本用法和 Claude CLI 查找规则：
 
+```bash
+node scripts/ecc-check-update.js --help
+```
 
-def read(path, warnings=None):
-    if path.exists():
-        return path.read_text(encoding='utf-8')
-    if warnings is not None:
-        warnings.append(f'missing project file: {path.relative_to(ROOT)}')
-    return ''
+## 脚本输出字段
 
+默认脚本输出为精简 JSON，用于判断是否需要继续分析或生成 update 计划。
 
-def extract_project_refs(warnings):
-    texts = []
-    for path in REQUIRED_PROJECT_FILES:
-        texts.append(read(path, warnings))
-    if SKILLS_DIR.exists():
-        for path in sorted(SKILLS_DIR.glob('*/SKILL.md')):
-            texts.append(read(path, warnings))
-    else:
-        warnings.append(f'missing project directory: {SKILLS_DIR.relative_to(ROOT)}')
+| 字段 | 含义 |
+| --- | --- |
+| `status` | 总体状态：`OK` 表示一致，`DIFF` 表示发现差异或新能力，`UNKNOWN` 表示当前环境信息不足。 |
+| `summary.baselineVersion` | `orchestration/ecc-baseline.md` 中记录的 ECC 基线版本。 |
+| `summary.installedVersion` | 当前环境安装的 ECC 版本；无法取得时为 `null`。 |
+| `summary.version` | 版本检查状态：`OK` / `DIFF` / `UNKNOWN`。 |
+| `summary.skillCommands` | 项目引用的 `/ecc:*` 指令可用性检查状态。 |
+| `summary.agents` | 项目引用的 `ecc:*` Agent 可用性检查状态。 |
+| `summary.mcpTemplates` | ECC MCP 配置模板清单同步状态。 |
+| `summary.newCapabilities` | 是否发现当前 ECC 中存在但项目能力映射尚未采用的新 `/ecc:*` 指令或 `ecc:*` Agent。 |
+| `diffs.missingSkillCommands` | 项目引用但当前 ECC 未找到的 `/ecc:*` 指令。 |
+| `diffs.missingAgents` | 项目引用但当前 ECC 未找到的 `ecc:*` Agent。 |
+| `diffs.newSkillCommands.count` | 当前 ECC 中存在但项目未采用的新 `/ecc:*` 指令数量。 |
+| `diffs.newSkillCommands.sample` | 新 `/ecc:*` 指令样例；完整列表只在 `--verbose` 输出中显示。 |
+| `diffs.newAgents.count` | 当前 ECC 中存在但项目未采用的新 `ecc:*` Agent 数量。 |
+| `diffs.newAgents.sample` | 新 `ecc:*` Agent 样例；完整列表只在 `--verbose` 输出中显示。 |
+| `diffs.missingMcpTemplatesInMap` | 当前 ECC 模板文件有、项目 MCP 模板参考区缺失的模板。 |
+| `diffs.staleMcpTemplatesInMap` | 项目 MCP 模板参考区有、当前 ECC 模板文件已不存在的模板。 |
+| `analysisRequired` | 需要 Claude 进行语义分析的差异类型，例如 `newSkillCommands`、`newAgents`、`mcpTemplates`。 |
+| `warnings` | 结构化告警列表，说明环境问题、解析失败或跳过原因。 |
+| `warnings[].code` | 告警代码，例如 `CLAUDE_CLI_NOT_FOUND`、`PLUGIN_LIST_FAILED`。 |
+| `warnings[].message` | 告警说明。 |
+| `warnings[].hint` | 可选处理建议或底层错误信息。 |
+| `nextAction` | 下一步建议。 |
 
-    text = '\n'.join(texts)
-    skill_commands = sorted(set(re.findall(r'/ecc:[A-Za-z0-9_-]+', text)))
-    agents = sorted(set(
-        item for item in re.findall(r'(?<![/@\w-])ecc:[A-Za-z0-9_-]+', text)
-        if item != 'ecc:baseline'
-    ))
-    return skill_commands, agents
+`--verbose` 会额外输出 `details`，包括完整 plugin 对象、组件数量、项目引用清单、已安装能力清单、MCP 模板来源和完整模板清单。默认输出不展示这些细节，避免噪音和本机路径泄露。
 
+## Claude CLI 查找
 
-def parse_baseline_version(warnings):
-    text = read(BASELINE, warnings)
-    m = re.search(r'^version:\s*([^\n]+)$', text, re.M)
-    if not m:
-        warnings.append('missing version field in orchestration/ecc-baseline.md')
-        return None
-    return m.group(1).strip()
+`scripts/ecc-check-update.js` 按以下顺序查找 Claude CLI：
 
+1. `CLAUDE_BIN` 环境变量。
+2. 当前 `PATH` 中的 `claude` / `claude.cmd` / `claude.exe` / `claude.bat`。
+3. Windows、macOS、Linux 的少量常见安装路径。
 
-def split_component_names(raw):
-    """Parse comma/newline separated plugin component names from CLI text."""
-    names = []
-    for item in re.split(r',|\n', raw):
-        item = item.strip()
-        if item:
-            names.append(item)
-    return set(names)
+如果输出 `status: UNKNOWN` 且 warning code 为 `CLAUDE_CLI_NOT_FOUND`、`PLUGIN_LIST_FAILED` 或 `PLUGIN_DETAILS_FAILED`，请先确认当前 shell 能直接运行：
 
+```bash
+claude plugin list --json
+```
 
-def parse_component_block(text, heading, stop_headings):
-    stops = '|'.join(rf'\n\s+{re.escape(stop)} \(' for stop in stop_headings)
-    match = re.search(rf'{re.escape(heading)} \(\d+\)\s+(.*?)(?:{stops}|\Z)', text, re.S)
-    return split_component_names(match.group(1)) if match else set()
+也可以显式指定 Claude CLI：
 
+```bash
+CLAUDE_BIN="/path/to/claude" node scripts/ecc-check-update.js
+```
 
-def parse_details(text, warnings):
-    counts = {}
-    for key in ['Skills', 'Agents', 'Hooks', 'MCP servers', 'LSP servers']:
-        m = re.search(rf'{re.escape(key)} \((\d+)\)', text)
-        if m:
-            counts[key] = int(m.group(1))
+Windows PowerShell 示例：
 
-    skills = parse_component_block(text, 'Skills', ['Agents', 'Hooks', 'MCP servers', 'LSP servers'])
-    agents = parse_component_block(text, 'Agents', ['Hooks', 'MCP servers', 'LSP servers'])
+```powershell
+$env:CLAUDE_BIN="C:\Users\<user>\AppData\Roaming\npm\claude.cmd"
+node scripts/ecc-check-update.js
+```
 
-    if counts.get('Skills') and not skills:
-        warnings.append('found Skills count but failed to parse installed skill names from plugin details')
-    if counts.get('Agents') and not agents:
-        warnings.append('found Agents count but failed to parse installed agent names from plugin details')
+## 升级机会分析
 
-    return counts, skills, agents
+当脚本发现 `summary.newCapabilities: PRESENT`，或 `analysisRequired` 包含 `newSkillCommands` / `newAgents` 时，不要直接把所有新增能力写入项目映射。应由 Claude 基于当前 8 个入口 skill 的职责做语义分析：
 
+| 维度 | 需要判断的问题 |
+| --- | --- |
+| 场景匹配 | 新能力是否对应 `/task-triage`、`/agent-env`、`/task-docs`、`/mvp-build`、`/feature-add`、`/refactor-safe`、`/migrate-safe`、`/bug-fix` 的某个阶段？ |
+| 替换价值 | 是否比当前推荐能力更准确、更强或风险更低？ |
+| 增强价值 | 是否适合作为可选能力或 Plan B，而不是替换现有能力？ |
+| 副作用 | 是否引入写入、外部服务、凭证、生产数据或不可逆风险？ |
+| 稳定性 | 是否需要先观察、试用或阅读 ECC 文档，而不是立即采用？ |
+| 文档影响 | 是否需要更新 `orchestration/ecc-capability-map.md` 或某个入口 skill？ |
 
-result = {
-    'plugin': None,
-    'baselineVersion': None,
-    'projectSkillCommands': [],
-    'projectAgents': [],
-    'missingSkillCommands': [],
-    'missingAgents': [],
-    'componentCounts': {},
-    'warnings': [],
-}
+分析结果建议分为：
 
-result['baselineVersion'] = parse_baseline_version(result['warnings'])
-
-list_cmd = run(['claude', 'plugin', 'list', '--json'])
-if list_cmd.returncode != 0:
-    result['warnings'].append('failed to run claude plugin list --json: ' + list_cmd.stderr.strip())
-else:
-    try:
-        plugins = json.loads(list_cmd.stdout)
-        result['plugin'] = next((p for p in plugins if p.get('id') == 'ecc@ecc'), None)
-        if not result['plugin']:
-            result['warnings'].append('ecc@ecc is not installed or not visible in plugin list')
-    except json.JSONDecodeError as exc:
-        result['warnings'].append(f'failed to parse plugin list JSON: {exc}')
-
-details_cmd = run(['claude', 'plugin', 'details', 'ecc@ecc'])
-if details_cmd.returncode != 0:
-    result['warnings'].append('failed to run claude plugin details ecc@ecc: ' + details_cmd.stderr.strip())
-    counts, installed_skills, installed_agents = {}, set(), set()
-else:
-    counts, installed_skills, installed_agents = parse_details(details_cmd.stdout, result['warnings'])
-    result['componentCounts'] = counts
-
-project_skill_commands, project_agents = extract_project_refs(result['warnings'])
-result['projectSkillCommands'] = project_skill_commands
-result['projectAgents'] = project_agents
-
-# A referenced slash command like /ecc:orch-build-mvp usually corresponds
-# to an installed ECC skill/command shim named orch-build-mvp.
-result['missingSkillCommands'] = [
-    cmd for cmd in project_skill_commands
-    if cmd.removeprefix('/ecc:') not in installed_skills
-]
-# A referenced agent like ecc:code-reviewer usually corresponds to an installed
-# ECC agent named code-reviewer.
-result['missingAgents'] = [
-    agent for agent in project_agents
-    if agent.removeprefix('ecc:') not in installed_agents
-]
-
-installed_version = result['plugin'].get('version') if result['plugin'] else None
-result['versionStatus'] = 'OK' if installed_version == result['baselineVersion'] else 'DIFF'
-
-print(json.dumps(result, ensure_ascii=False, indent=2))
-PY
-~~~
+| 类型 | 含义 | 处理方式 |
+| --- | --- | --- |
+| `replace-candidate` | 可能替换现有推荐能力。 | 生成待审批替换建议。 |
+| `enhancement-candidate` | 可增强某阶段，但不完全替代旧能力。 | 建议加入可选能力或 Plan B。 |
+| `observe-only` | 可能有用但语义或稳定性不足。 | 暂不写入主流程，只记录观察。 |
+| `not-relevant` | 与本项目编排场景无关或副作用过大。 | 不采用。 |
 
 ## 检查报告模板
 
 ### 一致时
 
-~~~markdown
+```markdown
 # ECC 检查结果
 
 ## 结论
@@ -214,16 +165,17 @@ PY
 
 - `/ecc:*` 指令：无缺失
 - `ecc:*` Agent：无缺失
-- 关注组件摘要：一致
+- MCP 配置模板清单：一致
+- 关注组件摘要：仅作信息参考
 
 ## 下一步
 
 无需操作。
-~~~
+```
 
 ### 不一致时
 
-~~~markdown
+```markdown
 # ECC 检查结果
 
 ## 结论
@@ -244,29 +196,59 @@ PY
 | 版本 | `<baseline-version>` | `<installed-version>` | 需要刷新基线 |
 | `/ecc:*` 指令 | `<project-command>` | 缺失 / 改名候选 | 需要确认替代能力 |
 | `ecc:*` Agent | `<project-agent>` | 缺失 / 改名候选 | 需要确认替代 Agent |
-| 关注组件 | `<baseline-summary>` | `<current-summary>` | 需要判断是否影响项目 |
+| MCP 配置模板清单 | `ecc-capability-map.md` 中记录的模板 | `mcp-configs/mcp-servers.json` | 需要刷新 MCP 模板参考区 |
+| 关注组件 | `<baseline-summary>` | `<current-summary>` | 仅作信息参考 |
+
+## 新增能力
+
+| 类型 | 数量 | 样例 | 是否需要分析 |
+| --- | ---: | --- | --- |
+| `/ecc:*` 指令 | `<count>` | `<sample>` | 是 / 否 |
+| `ecc:*` Agent | `<count>` | `<sample>` | 是 / 否 |
+
+## 升级机会分析
+
+| 目标 | 当前能力 | 候选能力 | 建议 | 理由 | 风险 |
+| --- | --- | --- | --- | --- | --- |
+| `<skill-or-stage>` | `<current>` | `<candidate>` | `replace-candidate / enhancement-candidate / observe-only / not-relevant` | `<reason>` | `<risk>` |
 
 ## Update 计划
 
-1. 更新 `orchestration/ecc-baseline.md` 的版本和项目关注组件摘要。
-2. 检查并更新 `orchestration/ecc-capability-map.md` 中缺失、改名或不适用的能力。
-3. 必要时更新 `skills/*/SKILL.md` 的推荐能力引用。
-4. 重新验证文档路径、能力引用和 Markdown 格式。
+1. 更新 `orchestration/ecc-baseline.md` 的 ECC 插件版本基线。
+2. 检查并更新 `orchestration/ecc-capability-map.md` 中缺失、改名或不适用的 `/ecc:*` 指令和 `ecc:*` Agent。
+3. 如果 ECC MCP 配置模板清单不一致，以当前环境 `mcp-configs/mcp-servers.json` 为准，刷新 `orchestration/ecc-capability-map.md` 的 MCP 配置模板参考区。
+4. 必要时更新 `skills/*/SKILL.md` 的推荐能力引用。
+5. 重新验证文档路径、能力引用和 Markdown 格式。
 
 ## 等待审批
 
 请确认是否按以上 update 计划刷新项目配套内容。用户审批前不写入项目文件。
-~~~
+```
+
+## MCP 配置模板检查边界
+
+本 command 会检查 ECC 插件目录中的 `mcp-configs/mcp-servers.json` 与 `orchestration/ecc-capability-map.md` 中 “MCP 配置模板参考” 的模板清单是否一致。
+
+该检查只用于维护项目文档中的模板参考区，不代表当前环境已经启用这些 MCP。
+
+本 command 不会：
+
+- 检查 Claude Code settings 中是否已配置某个 MCP。
+- 自动复制 MCP 配置模板。
+- 自动启用或禁用 MCP。
+- 读取、写入或生成 secrets、token、API key、登录态或生产敏感数据。
 
 ## 不一致时的处理原则
 
 1. 以当前环境安装的 ECC 插件为事实来源。
-2. 先输出差异点和 update 计划，不直接写入。
+2. 先输出差异点、升级机会分析和 update 计划，不直接写入。
 3. 不自动删除项目能力映射中的能力；缺失能力可能是解析缺口、插件未启用、命令改名或当前环境异常。
-4. 不自动把 ECC 新增的所有能力加入项目映射；只加入当前 8 个入口 skill 需要的能力。
-5. 对疑似改名的能力，只输出候选替代，不自动替换。
-6. 用户审批前不写入项目文件。
-7. 写入前必须确认影响文件和具体改动。
+4. 不自动把 ECC 新增的所有 `/ecc:*` 指令或 `ecc:*` Agent 加入项目映射；新增能力必须先按场景匹配、替换价值、增强价值、副作用和稳定性分析。
+5. 只有确认更适合当前 8 个入口 skill 的新增能力，才生成待审批替换或增强建议。
+6. MCP 配置模板清单以当前环境 `mcp-configs/mcp-servers.json` 为准；若不一致，只刷新 `ecc-capability-map.md` 中的模板参考区。
+7. 对疑似改名的能力，只输出候选替代，不自动替换。
+8. 用户审批前不写入项目文件。
+9. 写入前必须确认影响文件和具体改动。
 
 ## 用户审批后的可写入范围
 
@@ -289,7 +271,9 @@ PY
 刷新后至少检查：
 
 1. `orchestration/ecc-baseline.md` 版本与 `claude plugin list --json` 中 `ecc@ecc.version` 一致。
-2. `orchestration/ecc-capability-map.md` 中推荐的 `/ecc:*` 指令和 `ecc:*` Agent 有 Plan B。
-3. 8 个入口 skill 的 `metadata.capabilityMap` 仍指向 `orchestration/ecc-capability-map.md`。
-4. 没有把 ECC 全量组件清单写入 `ecc-baseline.md`。
-5. Markdown 末尾换行正常。
+2. `orchestration/ecc-baseline.md` 没有保存 ECC 全量组件清单、MCP 模板清单或当前启用 MCP 摘要。
+3. `orchestration/ecc-capability-map.md` 中推荐的 `/ecc:*` 指令和 `ecc:*` Agent 有 Plan B。
+4. `orchestration/ecc-capability-map.md` 中的 MCP 配置模板清单与当前环境 `mcp-configs/mcp-servers.json` 一致。
+5. 8 个入口 skill 的 `metadata.capabilityMap` 仍指向 `orchestration/ecc-capability-map.md`。
+6. 没有修改 Claude Code settings、hooks、MCP 配置或全局 ECC 插件目录。
+7. Markdown 末尾换行正常。
