@@ -58,68 +58,95 @@ ROOT = Path.cwd()
 BASELINE = ROOT / 'orchestration' / 'ecc-baseline.md'
 CAPABILITY_MAP = ROOT / 'orchestration' / 'ecc-capability-map.md'
 SKILLS_DIR = ROOT / 'skills'
+REQUIRED_PROJECT_FILES = [BASELINE, CAPABILITY_MAP]
 
 
 def run(cmd):
     return subprocess.run(cmd, text=True, capture_output=True, check=False)
 
 
-def read(path):
-    return path.read_text(encoding='utf-8') if path.exists() else ''
+def read(path, warnings=None):
+    if path.exists():
+        return path.read_text(encoding='utf-8')
+    if warnings is not None:
+        warnings.append(f'missing project file: {path.relative_to(ROOT)}')
+    return ''
 
 
-def extract_project_refs():
+def extract_project_refs(warnings):
     texts = []
-    for path in [BASELINE, CAPABILITY_MAP]:
-        texts.append(read(path))
+    for path in REQUIRED_PROJECT_FILES:
+        texts.append(read(path, warnings))
     if SKILLS_DIR.exists():
-        for path in SKILLS_DIR.glob('*/SKILL.md'):
-            texts.append(read(path))
+        for path in sorted(SKILLS_DIR.glob('*/SKILL.md')):
+            texts.append(read(path, warnings))
+    else:
+        warnings.append(f'missing project directory: {SKILLS_DIR.relative_to(ROOT)}')
+
     text = '\n'.join(texts)
-    commands = sorted(set(re.findall(r'/ecc:[A-Za-z0-9_-]+', text)))
+    skill_commands = sorted(set(re.findall(r'/ecc:[A-Za-z0-9_-]+', text)))
     agents = sorted(set(
         item for item in re.findall(r'(?<![/@\w-])ecc:[A-Za-z0-9_-]+', text)
         if item != 'ecc:baseline'
     ))
-    return commands, agents
+    return skill_commands, agents
 
 
-def parse_baseline_version():
-    text = read(BASELINE)
+def parse_baseline_version(warnings):
+    text = read(BASELINE, warnings)
     m = re.search(r'^version:\s*([^\n]+)$', text, re.M)
-    return m.group(1).strip() if m else None
+    if not m:
+        warnings.append('missing version field in orchestration/ecc-baseline.md')
+        return None
+    return m.group(1).strip()
 
 
-def parse_details(text):
-    skills = set()
-    agents = set()
+def split_component_names(raw):
+    """Parse comma/newline separated plugin component names from CLI text."""
+    names = []
+    for item in re.split(r',|\n', raw):
+        item = item.strip()
+        if item:
+            names.append(item)
+    return set(names)
+
+
+def parse_component_block(text, heading, stop_headings):
+    stops = '|'.join(rf'\n\s+{re.escape(stop)} \(' for stop in stop_headings)
+    match = re.search(rf'{re.escape(heading)} \(\d+\)\s+(.*?)(?:{stops}|\Z)', text, re.S)
+    return split_component_names(match.group(1)) if match else set()
+
+
+def parse_details(text, warnings):
     counts = {}
     for key in ['Skills', 'Agents', 'Hooks', 'MCP servers', 'LSP servers']:
         m = re.search(rf'{re.escape(key)} \((\d+)\)', text)
         if m:
             counts[key] = int(m.group(1))
 
-    skills_match = re.search(r'Skills \(\d+\)\s+(.*?)(?:\n\s+Agents \(|\n\s+Hooks \()', text, re.S)
-    if skills_match:
-        skills = {s.strip() for s in skills_match.group(1).replace('\n', ' ').split(',') if s.strip()}
+    skills = parse_component_block(text, 'Skills', ['Agents', 'Hooks', 'MCP servers', 'LSP servers'])
+    agents = parse_component_block(text, 'Agents', ['Hooks', 'MCP servers', 'LSP servers'])
 
-    agents_match = re.search(r'Agents \(\d+\)\s+(.*?)(?:\n\s+Hooks \(|\n\s+MCP servers \()', text, re.S)
-    if agents_match:
-        agents = {s.strip() for s in agents_match.group(1).replace('\n', ' ').split(',') if s.strip()}
+    if counts.get('Skills') and not skills:
+        warnings.append('found Skills count but failed to parse installed skill names from plugin details')
+    if counts.get('Agents') and not agents:
+        warnings.append('found Agents count but failed to parse installed agent names from plugin details')
 
     return counts, skills, agents
 
 
 result = {
     'plugin': None,
-    'baselineVersion': parse_baseline_version(),
-    'projectCommands': [],
+    'baselineVersion': None,
+    'projectSkillCommands': [],
     'projectAgents': [],
-    'missingCommands': [],
+    'missingSkillCommands': [],
     'missingAgents': [],
     'componentCounts': {},
     'warnings': [],
 }
+
+result['baselineVersion'] = parse_baseline_version(result['warnings'])
 
 list_cmd = run(['claude', 'plugin', 'list', '--json'])
 if list_cmd.returncode != 0:
@@ -138,17 +165,25 @@ if details_cmd.returncode != 0:
     result['warnings'].append('failed to run claude plugin details ecc@ecc: ' + details_cmd.stderr.strip())
     counts, installed_skills, installed_agents = {}, set(), set()
 else:
-    counts, installed_skills, installed_agents = parse_details(details_cmd.stdout)
+    counts, installed_skills, installed_agents = parse_details(details_cmd.stdout, result['warnings'])
     result['componentCounts'] = counts
 
-project_commands, project_agents = extract_project_refs()
-result['projectCommands'] = project_commands
+project_skill_commands, project_agents = extract_project_refs(result['warnings'])
+result['projectSkillCommands'] = project_skill_commands
 result['projectAgents'] = project_agents
 
-# /ecc:foo usually corresponds to an installed skill/command shim named foo.
-result['missingCommands'] = [cmd for cmd in project_commands if cmd.removeprefix('/ecc:') not in installed_skills]
-# ecc:foo usually corresponds to an installed agent named foo.
-result['missingAgents'] = [agent for agent in project_agents if agent.removeprefix('ecc:') not in installed_agents]
+# A referenced slash command like /ecc:orch-build-mvp usually corresponds
+# to an installed ECC skill/command shim named orch-build-mvp.
+result['missingSkillCommands'] = [
+    cmd for cmd in project_skill_commands
+    if cmd.removeprefix('/ecc:') not in installed_skills
+]
+# A referenced agent like ecc:code-reviewer usually corresponds to an installed
+# ECC agent named code-reviewer.
+result['missingAgents'] = [
+    agent for agent in project_agents
+    if agent.removeprefix('ecc:') not in installed_agents
+]
 
 installed_version = result['plugin'].get('version') if result['plugin'] else None
 result['versionStatus'] = 'OK' if installed_version == result['baselineVersion'] else 'DIFF'
