@@ -415,12 +415,12 @@ function deriveAnalysisRequired(summary, diffs) {
 }
 
 function deriveNextAction(status, analysisRequired) {
-  if (status === 'OK') return '当前环境 ECC 与项目基线和能力映射一致，无需更新。'
-  if (status === 'UNKNOWN') return '当前环境信息不足；请在可执行 claude CLI 的环境中重试，或设置 CLAUDE_BIN。'
+  if (status === 'OK') return 'The current ECC environment matches the project baseline and capability map; no update is required.'
+  if (status === 'UNKNOWN') return 'The current environment information is incomplete; retry in an environment where the claude CLI is executable, or set CLAUDE_BIN.'
   if (analysisRequired.includes('newAgents') || analysisRequired.includes('newSkillCommands')) {
-    return '发现 ECC 新能力或差异；请由 Claude 分析是否需要替换或优化现有编排内容，并等待用户审批。'
+    return 'New ECC capabilities or differences were found; ask Claude to analyze whether existing orchestration content should be replaced or optimized, then wait for user approval.'
   }
-  return '发现 ECC 差异；请审查 diff 并生成待审批 update 计划。'
+  return 'ECC differences were found; review the diff and generate an update plan for approval.'
 }
 
 function main() {
