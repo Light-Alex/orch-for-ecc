@@ -28,11 +28,12 @@ const { spawnSync } = require('child_process')
 
 const args = new Set(process.argv.slice(2))
 const verbose = args.has('--verbose')
+const opportunities = args.has('--opportunities') || verbose
 const help = args.has('--help') || args.has('-h')
 
 if (help) {
   console.log(`Usage:
-  node scripts/ecc-check-update.js [--verbose]
+  node scripts/ecc-check-update.js [--opportunities] [--verbose]
 
 Environment:
   CLAUDE_BIN  Optional path to Claude CLI. Useful when claude is not on PATH.
@@ -44,6 +45,7 @@ Claude CLI lookup:
 
 Output:
   Default JSON: status, summary, diffs, analysisRequired, warnings, nextAction.
+  --opportunities includes optional new ECC capabilities in diffs and analysisRequired.
   --verbose adds details for debugging and review.
 `)
   process.exit(0)
@@ -389,9 +391,8 @@ function deriveOverallStatus(summary) {
     summary.skillCommands,
     summary.agents,
     summary.mcpTemplates,
-    summary.newCapabilities,
   ]
-  if (values.includes('DIFF') || values.includes('PRESENT')) return 'DIFF'
+  if (values.includes('DIFF')) return 'DIFF'
   if (values.includes('UNKNOWN')) return 'UNKNOWN'
   return 'OK'
 }
@@ -403,10 +404,10 @@ function summarizeList(items, sampleSize = 10) {
   }
 }
 
-function deriveAnalysisRequired(summary, diffs) {
+function deriveAnalysisRequired(summary, diffs, includeOpportunities) {
   const required = []
-  if (diffs.newSkillCommands.count) required.push('newSkillCommands')
-  if (diffs.newAgents.count) required.push('newAgents')
+  if (includeOpportunities && diffs.newSkillCommands.count) required.push('newSkillCommands')
+  if (includeOpportunities && diffs.newAgents.count) required.push('newAgents')
   if (diffs.missingMcpTemplatesInMap.length || diffs.staleMcpTemplatesInMap.length) required.push('mcpTemplates')
   if (summary.version === 'DIFF') required.push('version')
   if (diffs.missingSkillCommands.length) required.push('missingSkillCommands')
@@ -414,13 +415,22 @@ function deriveAnalysisRequired(summary, diffs) {
   return uniqueSorted(required)
 }
 
-function deriveNextAction(status, analysisRequired) {
-  if (status === 'OK') return 'The current ECC environment matches the project baseline and capability map; no update is required.'
+function deriveNextAction(status, analysisRequired, opportunityCounts) {
+  const hasOpportunities = opportunityCounts.newSkillCommands || opportunityCounts.newAgents
+  if (status === 'OK') {
+    if (analysisRequired.includes('newAgents') || analysisRequired.includes('newSkillCommands')) {
+      return 'The current ECC environment is compatible with the project baseline; optional new capabilities are listed for review. Analyze them only if you want to refresh the project capability map.'
+    }
+    if (hasOpportunities) {
+      return 'The current ECC environment is compatible with the project baseline; optional new capabilities are available. Run with --opportunities to review them.'
+    }
+    return 'The current ECC environment matches the project baseline and capability map; no update is required.'
+  }
   if (status === 'UNKNOWN') return 'The current environment information is incomplete; retry in an environment where the claude CLI is executable, or set CLAUDE_BIN.'
   if (analysisRequired.includes('newAgents') || analysisRequired.includes('newSkillCommands')) {
     return 'New ECC capabilities or differences were found; ask Claude to analyze whether existing orchestration content should be replaced or optimized, then wait for user approval.'
   }
-  return 'ECC differences were found; review the diff and generate an update plan for approval.'
+  return 'ECC differences affect the project baseline; review the diff and generate an update plan for approval.'
 }
 
 function main() {
@@ -523,14 +533,14 @@ function main() {
   const diffs = {
     missingSkillCommands: skillCommandCheck.missing,
     missingAgents: agentCheck.missing,
-    newSkillCommands: summarizeList(newSkillCommands),
-    newAgents: summarizeList(newAgents),
+    newSkillCommands: opportunities ? summarizeList(newSkillCommands) : summarizeList([]),
+    newAgents: opportunities ? summarizeList(newAgents) : summarizeList([]),
     missingMcpTemplatesInMap,
     staleMcpTemplatesInMap,
   }
 
   const status = deriveOverallStatus(summary)
-  const analysisRequired = deriveAnalysisRequired(summary, diffs)
+  const analysisRequired = deriveAnalysisRequired(summary, diffs, opportunities)
 
   const result = {
     status,
@@ -538,7 +548,10 @@ function main() {
     diffs,
     analysisRequired,
     warnings,
-    nextAction: deriveNextAction(status, analysisRequired),
+    nextAction: deriveNextAction(status, analysisRequired, {
+      newSkillCommands: newSkillCommands.length,
+      newAgents: newAgents.length,
+    }),
   }
 
   if (verbose) {

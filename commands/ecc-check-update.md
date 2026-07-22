@@ -1,6 +1,6 @@
 ---
 name: ecc-check-update
-description: 检查当前环境安装的 ECC 插件版本是否与项目基线一致；一致则报告无需更新，不一致则列出差异并生成等待审批的 update 计划。
+description: 检查当前环境安装的 ECC 插件是否与项目基线兼容；兼容则报告无需更新，不兼容则列出差异并生成等待审批的 update 计划。
 metadata:
   language: zh-CN
   scope: project
@@ -39,8 +39,9 @@ metadata:
    - `ecc:*` Agent 是否可在当前 ECC agents 中找到对应能力。
    - 当前环境 ECC `mcp-configs/mcp-servers.json` 是否与 `orchestration/ecc-capability-map.md` 中的 MCP 配置模板清单一致。
 6. 输出检查结论：
-   - 如果一致：报告当前环境 ECC 与项目基线一致，无需更新。
-   - 如果不一致：报告不一致，列出差异点，并生成 update 计划。
+   - 如果兼容：报告当前环境 ECC 与项目基线兼容，无需更新。
+   - 如果不兼容：报告不兼容，列出差异点，并生成 update 计划。
+   - 如果仅发现新增能力：作为可选升级机会处理，不默认生成 update 计划。
 7. 等待用户审批：用户批准前不写入项目文件。
 
 ## 只读检查脚本
@@ -49,6 +50,12 @@ metadata:
 
 ```bash
 node scripts/ecc-check-update.js
+```
+
+如需主动查看当前 ECC 中存在但项目尚未采用的新能力，可使用：
+
+```bash
+node scripts/ecc-check-update.js --opportunities
 ```
 
 如需排查脚本解析细节，可使用：
@@ -69,7 +76,7 @@ node scripts/ecc-check-update.js --help
 
 | 字段 | 含义 |
 | --- | --- |
-| `status` | 总体状态：`OK` 表示一致，`DIFF` 表示发现差异或新能力，`UNKNOWN` 表示当前环境信息不足。 |
+| `status` | 总体状态：`OK` 表示兼容或一致，`DIFF` 表示项目基线受到差异影响，`UNKNOWN` 表示当前环境信息不足。仅发现新增能力时默认仍为 `OK`。 |
 | `summary.baselineVersion` | `orchestration/ecc-baseline.md` 中记录的 ECC 基线版本。 |
 | `summary.installedVersion` | 当前环境安装的 ECC 版本；无法取得时为 `null`。 |
 | `summary.version` | 版本检查状态：`OK` / `DIFF` / `UNKNOWN`。 |
@@ -79,18 +86,20 @@ node scripts/ecc-check-update.js --help
 | `summary.newCapabilities` | 是否发现当前 ECC 中存在但项目能力映射尚未采用的新 `/ecc:*` 指令或 `ecc:*` Agent。 |
 | `diffs.missingSkillCommands` | 项目引用但当前 ECC 未找到的 `/ecc:*` 指令。 |
 | `diffs.missingAgents` | 项目引用但当前 ECC 未找到的 `ecc:*` Agent。 |
-| `diffs.newSkillCommands.count` | 当前 ECC 中存在但项目未采用的新 `/ecc:*` 指令数量。 |
+| `diffs.newSkillCommands.count` | 当前 ECC 中存在但项目未采用的新 `/ecc:*` 指令数量；默认模式为 `0`，使用 `--opportunities` 或 `--verbose` 时展示。 |
 | `diffs.newSkillCommands.sample` | 新 `/ecc:*` 指令样例；完整列表只在 `--verbose` 输出中显示。 |
-| `diffs.newAgents.count` | 当前 ECC 中存在但项目未采用的新 `ecc:*` Agent 数量。 |
+| `diffs.newAgents.count` | 当前 ECC 中存在但项目未采用的新 `ecc:*` Agent 数量；默认模式为 `0`，使用 `--opportunities` 或 `--verbose` 时展示。 |
 | `diffs.newAgents.sample` | 新 `ecc:*` Agent 样例；完整列表只在 `--verbose` 输出中显示。 |
 | `diffs.missingMcpTemplatesInMap` | 当前 ECC 模板文件有、项目 MCP 模板参考区缺失的模板。 |
 | `diffs.staleMcpTemplatesInMap` | 项目 MCP 模板参考区有、当前 ECC 模板文件已不存在的模板。 |
-| `analysisRequired` | 需要 Claude 进行语义分析的差异类型，例如 `newSkillCommands`、`newAgents`、`mcpTemplates`。 |
+| `analysisRequired` | 需要 Claude 进行语义分析的差异类型，例如 `mcpTemplates`、`version`、`missingSkillCommands`。`newSkillCommands` / `newAgents` 仅在使用 `--opportunities` 或 `--verbose` 时纳入。 |
 | `warnings` | 结构化告警列表，说明环境问题、解析失败或跳过原因。 |
 | `warnings[].code` | 告警代码，例如 `CLAUDE_CLI_NOT_FOUND`、`PLUGIN_LIST_FAILED`。 |
 | `warnings[].message` | 告警说明。 |
 | `warnings[].hint` | 可选处理建议或底层错误信息。 |
 | `nextAction` | 下一步建议。 |
+
+`--opportunities` 会展示当前 ECC 中存在但项目尚未采用的新 `/ecc:*` 指令和 `ecc:*` Agent，并把它们加入 `analysisRequired`。这些新增能力默认只代表可选升级机会，不影响 `status`。
 
 `--verbose` 会额外输出 `details`，包括完整 plugin 对象、组件数量、项目引用清单、已安装能力清单、MCP 模板来源和完整模板清单。默认输出不展示这些细节，避免噪音和本机路径泄露。
 
@@ -173,14 +182,42 @@ node scripts/ecc-check-update.js
 无需操作。
 ```
 
-### 不一致时
+### 兼容但有可选升级机会时
 
 ```markdown
 # ECC 检查结果
 
 ## 结论
 
-当前环境 ECC 与项目基线不一致，需要审批后更新。
+当前环境 ECC 与项目基线兼容，无需立即更新。
+
+## 当前环境
+
+- ECC 插件：`ecc@ecc`
+- 当前版本：`<installed-version>`
+- 基线版本：`<baseline-version>`
+- 状态：`enabled: <true|false>`
+
+## 校验结果
+
+- `/ecc:*` 指令：无缺失
+- `ecc:*` Agent：无缺失
+- MCP 配置模板清单：一致
+- 新增能力：仅作为可选升级机会，不影响当前编排流程
+
+## 下一步
+
+无需操作。如需维护项目能力映射，可运行 `node scripts/ecc-check-update.js --opportunities` 后再做升级机会分析。
+```
+
+### 不兼容时
+
+```markdown
+# ECC 检查结果
+
+## 结论
+
+当前环境 ECC 与项目基线不兼容，需要审批后更新。
 
 ## 当前环境
 
@@ -243,7 +280,7 @@ node scripts/ecc-check-update.js
 1. 以当前环境安装的 ECC 插件为事实来源。
 2. 先输出差异点、升级机会分析和 update 计划，不直接写入。
 3. 不自动删除项目能力映射中的能力；缺失能力可能是解析缺口、插件未启用、命令改名或当前环境异常。
-4. 不自动把 ECC 新增的所有 `/ecc:*` 指令或 `ecc:*` Agent 加入项目映射；新增能力必须先按场景匹配、替换价值、增强价值、副作用和稳定性分析。
+4. 不自动把 ECC 新增的所有 `/ecc:*` 指令或 `ecc:*` Agent 加入项目映射；新增能力默认只作为可选升级机会，必须先按场景匹配、替换价值、增强价值、副作用和稳定性分析。
 5. 只有确认更适合当前 8 个入口 skill 的新增能力，才生成待审批替换或增强建议。
 6. MCP 配置模板清单以当前环境 `mcp-configs/mcp-servers.json` 为准；若不一致，只刷新 `ecc-capability-map.md` 中的模板参考区。
 7. 对疑似改名的能力，只输出候选替代，不自动替换。

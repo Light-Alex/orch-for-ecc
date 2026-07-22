@@ -50,6 +50,7 @@ ECC 能力分为三层：
 | 质量门禁 | `/ecc:quality-gate` | 聚合测试、lint、build、审查结果 | 手动运行 test / lint / build 并汇总 |
 | 文档更新 | `/ecc:update-docs` | 更新文档和 codemap | 手动更新 `docs/`；doc-updater agent |
 | 最新库 / API 文档查询 | `/ecc:documentation-lookup` | 查询框架、库、SDK 或 API 的最新文档和示例 | `ecc:docs-lookup` agent；Context7 / Web 文档；手动查阅官方文档 |
+| 成本 / 上下文预算 | `/ecc:cost-report`、`/ecc:token-budget-advisor` | 估算或复盘 token / 成本 / 上下文使用 | 手动记录消耗；限制上下文加载范围 |
 | checkpoint | `/ecc:checkpoint` | 保存阶段性状态和回滚点 | `git diff` + 手动记录阶段摘要 |
 
 ## Agent 能力映射
@@ -69,7 +70,7 @@ ECC Agent 是 `/ecc:*` 指令之外的可见专项能力。指令型能力适合
 | 任务规划 | `ecc:planner`、`ecc:architect`、`ecc:code-architect` | 规划任务、设计方案、拆分实施步骤 | Claude Code plan mode；主 Agent 手动规划 |
 | 代码探索 | `ecc:code-explorer` | 只读分析现有实现、调用链、依赖关系 | CodeGraph；Grep/Read；手动探索 |
 | 架构设计 | `ecc:architect`、`ecc:code-architect` | 系统设计、模块边界、技术决策 | 主 Agent 设计；参考现有架构文档 |
-| 文档更新 | `ecc:doc-updater` | 更新文档、codemap、README | 主 Agent 手动更新文档 |
+| 文档更新 | `ecc:doc-updater`、`ecc:spec-miner` | 更新文档、codemap、README；从 brownfield 项目提取行为规范 | 主 Agent 手动更新文档；手动维护 specs |
 | 构建修复 | `ecc:build-error-resolver`、语言专用 build resolver | 修复 build/type/compile 错误 | 主 Agent 最小修复；手动分析日志 |
 | 代码审查 | `ecc:code-reviewer`、语言 / 框架专用 reviewer | correctness、maintainability、language-specific review | Claude Code 内建 code review；手动 checklist |
 | 安全审查 | `ecc:security-reviewer` | 检查 secrets、注入、权限、安全边界 | 手动 OWASP checklist；安全审查清单 |
@@ -84,7 +85,7 @@ ECC Agent 是 `/ecc:*` 指令之外的可见专项能力。指令型能力适合
 | 类型设计分析 | `ecc:type-design-analyzer` | 检查类型边界、封装、不变量表达和可维护性 | 手动检查接口、schema、DTO 和领域类型 |
 | 注释准确性 | `ecc:comment-analyzer` | 检查注释过期、误导或缺失的维护风险 | 手动对照代码行为更新注释 |
 
-语言 / 框架专用 reviewer / build resolver 可作为 `ecc:code-reviewer`、`ecc:build-error-resolver` 的专项 Plan B。例如 TypeScript / JavaScript、React、Vue、Go、Python、Java、Rust、Django、FastAPI、Flutter、Swift、Kotlin、C++、C#、F#、PHP、Dart、PyTorch 等项目可优先选择对应语言、框架或运行时 Agent；如果没有匹配 Agent，则回退到通用 reviewer / build resolver 或手动检查。项目内入口 skill 不维护完整语言矩阵，只要求执行时按当前技术栈选择最贴近的专项能力。
+语言 / 框架专用 reviewer / build resolver 可作为 `ecc:code-reviewer`、`ecc:build-error-resolver` 的专项 Plan B。例如 TypeScript / JavaScript、React、Vue、Go、Python、Java、Rust、Django、FastAPI、Flutter、Swift、Kotlin、C++、C#、F#、PHP、Dart、PyTorch 等项目可优先选择对应语言、框架或运行时 Agent；当前 ECC 中可见的新增示例包括 `ecc:typescript-reviewer`、`ecc:react-build-resolver`、`ecc:react-reviewer`、`ecc:python-reviewer`、`ecc:go-build-resolver`、`ecc:java-build-resolver`、`ecc:rust-build-resolver`、`ecc:vue-reviewer` 等。如果没有匹配 Agent，则回退到通用 reviewer / build resolver 或手动检查。项目内入口 skill 不维护完整语言矩阵，只要求执行时按当前技术栈选择最贴近的专项能力。
 
 ## 场景映射
 
@@ -100,23 +101,26 @@ ECC Agent 是 `/ecc:*` 指令之外的可见专项能力。指令型能力适合
 
 | 阶段 | 优先 ECC 能力 | 用途 | Plan B |
 | --- | --- | --- | --- |
-| 能力盘点 | `/ecc:ecc-guide`、`/ecc:multi-plan`、`/ecc:configure-ecc` | 识别可用 ECC 能力、配置入口和编排方式 | 使用当前 `/skills`、`/context` 可见能力列表 |
-| Agent 策略 | `/ecc:multi-plan`、`/ecc:harness-audit` | 规划只读 / 可写 Agent 边界，审计 harness 配置风险 | 手动列出 Agent 角色和写入边界 |
+| 能力盘点 | `/ecc:ecc-guide`、`/ecc:ecc-recipes`、`/ecc:multi-plan`、`/ecc:configure-ecc` | 识别可用 ECC 能力、配置入口、配方和编排方式 | 使用当前 `/skills`、`/context` 可见能力列表 |
+| 成本 / 路由 / 上下文 | `/ecc:ecc-tools-cost-audit`、`/ecc:cost-report`、`/ecc:token-budget-advisor`、`/ecc:model-route` | 评估工具成本、token 预算、模型路由和上下文加载边界 | 手动限制上下文；记录实际用量；不做自动路由调整 |
+| Agent 策略 | `/ecc:multi-plan`、`/ecc:harness-audit`、`/ecc:autonomous-agent-harness` | 规划只读 / 可写 Agent 边界，审计 harness 配置风险，按需设计 autonomous harness | 手动列出 Agent 角色和写入边界 |
 | 门禁策略 | `/ecc:quality-gate` | 设计验证与审查门禁 | 手动 test / lint / build / review 清单 |
 
 ### `/task-docs`
 
 | 阶段 | 优先 ECC 能力 | 用途 | Plan B |
 | --- | --- | --- | --- |
-| 文档规划 | `/ecc:update-docs`、`/ecc:documentation-lookup` | 识别需要更新的文档；需要库、框架、SDK 或 API 资料时查询最新官方文档 | 手动列出 `docs/`、`releases/`、`.claude/runs/`；`ecc:docs-lookup` agent；Context7 / Web 文档 |
-| 项目说明 | `/ecc:update-codemaps` | 更新 codemap 或架构索引 | 手动维护架构说明和影响面 |
+| 文档规划 | `/ecc:update-docs`、`/ecc:documentation-lookup`、`/ecc:architecture-decision-records` | 识别需要更新的文档；需要库、框架、SDK 或 API 资料时查询最新官方文档；需要记录架构决策时生成 ADR | 手动列出 `docs/`、`releases/`、`.claude/runs/`；`ecc:docs-lookup` agent；Context7 / Web 文档 |
+| 项目说明 | `/ecc:update-codemaps`、`/ecc:deep-research`、`/ecc:research-ops` | 更新 codemap 或架构索引；需要多源研究或资料整理时补充研究型文档 | 手动维护架构说明和影响面 |
+| 规范提取 | `ecc:spec-miner` | 从 brownfield 项目提取行为规格和不变量 | 手动维护 specs；限定输出路径和写入范围 |
 | 交付门禁 | `/ecc:quality-gate` | 确保文档与验证结果一致 | 手动对照代码、测试和运行结果 |
 
 ### `/mvp-build`
 
 | 阶段 | 优先 ECC 能力 | 用途 | Plan B |
 | --- | --- | --- | --- |
-| PRD / MVP | `/ecc:plan-prd`、`/ecc:plan` | 收敛目标用户、MVP 边界、验收标准 | 手动 PRD / MVP 草案 |
+| PRD / MVP | `/ecc:plan-prd`、`/ecc:plan`、`/ecc:blueprint` | 收敛目标用户、MVP 边界、验收标准和实现蓝图 | 手动 PRD / MVP 草案 |
+| 产品 / 设计 | `/ecc:product-capability`、`/ecc:product-lens`、`/ecc:design-system` | 按需补充产品能力拆解、产品视角和设计系统约束 | 手动产品说明和 UI checklist |
 | 项目初始化 | `/ecc:project-init` | 初始化项目结构 | 手动按技术栈创建骨架 |
 | 实现 | `/ecc:feature-dev`、`/ecc:orch-build-mvp` | 构建核心垂直切片 | 主 Agent 小步实现 |
 | 验证 | `/ecc:quality-gate`、`/ecc:test-coverage` | 测试、lint、build、覆盖检查 | 手动运行验证命令 |
@@ -126,7 +130,8 @@ ECC Agent 是 `/ecc:*` 指令之外的可见专项能力。指令型能力适合
 
 | 阶段 | 优先 ECC 能力 | 用途 | Plan B |
 | --- | --- | --- | --- |
-| 探索 | `/ecc:plan`、`/ecc:orch-add-feature`、`/ecc:orch-change-feature`、`/ecc:codebase-onboarding`、`/ecc:code-tour` | 探索相似实现、调用链、权限点和代码结构；修改已有功能时可优先考虑 `/ecc:orch-change-feature` | CodeGraph / 只读探索 Agent / 手动读取代码 |
+| 探索 | `/ecc:plan`、`/ecc:orch-add-feature`、`/ecc:orch-change-feature`、`/ecc:codebase-onboarding`、`/ecc:code-tour`、`/ecc:search-first` | 探索相似实现、调用链、权限点和代码结构；修改已有功能时可优先考虑 `/ecc:orch-change-feature`；不确定入口时先搜索 | CodeGraph / 只读探索 Agent / 手动读取代码 |
+| 设计 | `/ecc:api-design`、`/ecc:backend-patterns`、`/ecc:frontend-patterns`、`/ecc:mcp-server-patterns` | 按技术栈补充 API、前端、后端或 MCP 设计约束 | 主 Agent 按现有架构手动设计 |
 | 实现 | `/ecc:feature-dev` | 新增功能并控制改动范围 | 主 Agent 实现，避免顺手重构 |
 | 构建修复 | `/ecc:build-fix` | 修复新增功能引起的构建问题 | 对应 build resolver agent |
 | 审查 | `/ecc:code-review` | 检查正确性、维护性、边界 | 内建 code-review 或语言 reviewer agent |
@@ -136,8 +141,9 @@ ECC Agent 是 `/ecc:*` 指令之外的可见专项能力。指令型能力适合
 
 | 阶段 | 优先 ECC 能力 | 用途 | Plan B |
 | --- | --- | --- | --- |
-| 重构规划 | `/ecc:plan`、`/ecc:orch-refine-code` | 拆分小阶段并定义行为不变证据 | 手动阶段计划 |
+| 重构规划 | `/ecc:plan`、`/ecc:orch-refine-code`、`/ecc:inherit-legacy-style` | 拆分小阶段并定义行为不变证据；需要继承旧风格时先分析既有模式 | 手动阶段计划 |
 | 清理执行 | `/ecc:refactor-clean` | 删除重复、死代码或简化结构 | code-simplifier / refactor-cleaner agent |
+| 质量证据 | `/ecc:plankton-code-quality`、`/ecc:codehealth-mcp`、`/ecc:ai-regression-testing` | 按需补充代码健康、回归证据或质量指标 | 手动 checklist；相关测试和审查 |
 | 验证 | `/ecc:quality-gate`、`/ecc:test-coverage`、`/ecc:verification-loop` | 每阶段验证行为不变，必要时循环验证关键路径 | 手动运行相关测试 |
 | 审查 | `/ecc:code-review`、`/ecc:error-handling` | 检查行为不变、可维护性、错误处理和风险 | 内建 code-review 或 reviewer agent |
 
@@ -145,8 +151,9 @@ ECC Agent 是 `/ecc:*` 指令之外的可见专项能力。指令型能力适合
 
 | 阶段 | 优先 ECC 能力 | 用途 | Plan B |
 | --- | --- | --- | --- |
-| 迁移规划 | `/ecc:plan`、`/ecc:multi-plan`、`/ecc:multi-workflow` | 拆分迁移阶段、样本切片、回滚点 | 手动迁移计划和兼容矩阵 |
+| 迁移规划 | `/ecc:plan`、`/ecc:multi-plan`、`/ecc:multi-workflow`、`/ecc:database-migrations`、`/ecc:deployment-patterns` | 拆分迁移阶段、样本切片、回滚点；按需补充数据库或部署迁移模式 | 手动迁移计划和兼容矩阵 |
 | 分区执行 | `/ecc:multi-execute`、`/ecc:parallel-execution-optimizer` | 多 Agent 分区执行受控迁移，并优化并发边界 | 主 Agent 串行执行；限制写入边界 |
+| 运行观察 | `/ecc:canary-watch`、`/ecc:production-audit` | 明确生产 / canary 观察需求且用户授权时使用 | 手动检查发布状态；用户提供观测结果 |
 | 构建修复 | `/ecc:build-fix` | 修复迁移导致的构建问题 | 对应 build resolver agent |
 | 审查 | `/ecc:code-review`、`/ecc:security-scan`、`/ecc:delivery-gate` | 检查兼容性、安全、副作用和交付门禁 | reviewer / security-reviewer agent |
 | 门禁 | `/ecc:quality-gate` | 旧/新行为对比、测试、lint、build | 手动验证和差异说明 |
@@ -156,10 +163,11 @@ ECC Agent 是 `/ecc:*` 指令之外的可见专项能力。指令型能力适合
 
 | 阶段 | 优先 ECC 能力 | 用途 | Plan B |
 | --- | --- | --- | --- |
-| 复现规划 | `/ecc:plan`、`/ecc:orch-fix-defect` | 明确现象、预期、复现路径 | 手动最小复现和诊断探针 |
+| 复现规划 | `/ecc:plan`、`/ecc:orch-fix-defect`、`/ecc:search-first` | 明确现象、预期、复现路径；不确定入口时先搜索 | 手动最小复现和诊断探针 |
 | 构建 / 测试失败修复 | `/ecc:build-fix` | 处理失败命令、类型错误、构建错误 | 对应 build resolver agent；手动日志分析 |
 | 修复 | `/ecc:feature-dev`、`/ecc:error-handling` | 做最小修复，必要时专项检查错误处理路径 | 主 Agent 最小改动 |
-| 防回归 | `/ecc:test-coverage`、`/ecc:verification-loop` | 增加或检查回归测试，循环验证关键复现路径 | 手动增加失败测试 / 回归用例 |
+| 浏览器 / 路径复现 | `/ecc:click-path-audit`、`/ecc:browser-qa` | Web UI 或关键点击路径 bug 需要可观察复现时使用 | 手动浏览器验证；Playwright / DevTools |
+| 防回归 | `/ecc:test-coverage`、`/ecc:verification-loop`、`/ecc:ai-regression-testing` | 增加或检查回归测试，循环验证关键复现路径；需要 AI 回归证据时按需使用 | 手动增加失败测试 / 回归用例 |
 | 审查 | `/ecc:code-review`、`/ecc:security-scan` | 检查副作用和安全风险 | 内建 code-review / security-review |
 | 门禁 | `/ecc:quality-gate` | 汇总复现路径、测试和验证结果 | 手动运行相关验证命令 |
 
@@ -244,15 +252,17 @@ mcp-configs/mcp-servers.json
 
 | 类型 | 代表能力 | 当前建议 | 采用条件 |
 | --- | --- | --- | --- |
-| 编排优化 | `/ecc:orch-pipeline`、`/ecc:team-agent-orchestration`、`/ecc:agent-sort`、`/ecc:team-builder`、`/ecc:council`、`/ecc:dynamic-workflow-mode` | observe-only | 明确比 `/ecc:multi-plan` / `/ecc:multi-workflow` 更适合本项目入口 skill，且能控制写入边界与 token 成本 |
-| Agent harness / 环境 | `/ecc:agent-harness-construction`、`/ecc:agent-introspection-debugging`、`/ecc:agent-self-evaluation`、`/ecc:hookify`、`/ecc:hookify-configure`、`/ecc:hookify-help`、`/ecc:hookify-list`、`/ecc:config-gc` | enhancement-candidate | 仅在 `/agent-env`、harness 审计、hooks 或明确配置任务中使用；写入 settings、hooks、MCP 前必须再次确认 |
-| 浏览器 / E2E / 可访问性 | `/ecc:browser-qa`、`/ecc:e2e-testing`、`/ecc:accessibility`、`/ecc:frontend-a11y`、`/ecc:frontend-design-direction` | enhancement-candidate | Web UI、MVP、可访问性或关键用户旅程验证需要浏览器证据，且用户接受额外运行成本 |
-| 文档 / 架构 / 代码健康 | `/ecc:architecture-decision-records`、`/ecc:repo-scan`、`/ecc:codehealth-mcp`、`/ecc:coding-standards`、`/ecc:inherit-legacy-style` | enhancement-candidate | 需要 ADR、repo 扫描、代码健康、风格继承或重构前后质量证据，且输出范围明确 |
-| 语言 / 框架专项能力 | `/ecc:react-build`、`/ecc:react-review`、`/ecc:python-review`、`/ecc:go-build`、`/ecc:rust-review`、对应语言 reviewer / build resolver Agent | enhancement-candidate | 当前项目技术栈明确匹配时，作为通用 build / review 的专项 Plan B；不在入口 skill 中维护完整语言矩阵 |
-| MVP / GAN harness | `/ecc:gan-build`、`/ecc:gan-design`、`ecc:gan-planner`、`ecc:gan-generator`、`ecc:gan-evaluator` | observe-only | 任务需要高迭代 UI / 产品原型，且用户接受较高 token、浏览器验证和多轮写入成本 |
-| 领域型能力 | marketing、finance、healthcare、network、homelab、scientific、video、trade 等相关 skill / agent | not-relevant | 入口 skill 明确转向对应领域项目，并能定义数据、凭证和外部副作用边界 |
-| 双用途安全能力 | `/ecc:security-bounty-hunter`、领域安全专项能力 | observe-only | 用户提供明确授权上下文，且任务边界符合防御、审计、CTF 或授权测试要求 |
-| 外部服务 / 配置能力 | `/ecc:configure-ecc`、MCP / settings / hook 相关能力 | enhancement-candidate | 仅在 `/agent-env` 或明确配置任务中使用，写入 settings、hooks、MCP 前必须再次确认 |
+| 编排优化 | `/ecc:orch-pipeline`、`/ecc:team-agent-orchestration`、`/ecc:agent-sort`、`/ecc:team-builder`、`/ecc:council`、`/ecc:dynamic-workflow-mode`、`/ecc:dmux-workflows`、`/ecc:continuous-agent-loop`、`/ecc:autonomous-loops` | observe-only | 明确比 `/ecc:multi-plan` / `/ecc:multi-workflow` 更适合本项目入口 skill，且能控制写入边界、循环停止条件与 token 成本 |
+| Agent harness / 环境 | `/ecc:agent-harness-construction`、`/ecc:agent-introspection-debugging`、`/ecc:agent-self-evaluation`、`/ecc:hookify`、`/ecc:hookify-configure`、`/ecc:hookify-help`、`/ecc:hookify-list`、`/ecc:hookify-rules`、`/ecc:config-gc`、`/ecc:ecc-recipes`、`/ecc:ecc-tools-cost-audit`、`/ecc:model-route`、`/ecc:token-budget-advisor`、`ecc:loop-operator` | enhancement-candidate | 仅在 `/agent-env`、harness 审计、hooks、成本 / 上下文预算或明确配置任务中使用；写入 settings、hooks、MCP 前必须再次确认 |
+| 浏览器 / E2E / 可访问性 | `/ecc:browser-qa`、`/ecc:e2e-testing`、`/ecc:accessibility`、`/ecc:frontend-a11y`、`/ecc:frontend-design-direction`、`/ecc:click-path-audit`、`/ecc:windows-desktop-e2e` | enhancement-candidate | Web UI、MVP、可访问性或关键用户旅程验证需要浏览器证据，且用户接受额外运行成本 |
+| 文档 / 架构 / 代码健康 | `/ecc:architecture-decision-records`、`/ecc:repo-scan`、`/ecc:codehealth-mcp`、`/ecc:coding-standards`、`/ecc:inherit-legacy-style`、`/ecc:deep-research`、`/ecc:research-ops`、`/ecc:rules-distill`、`ecc:spec-miner` | enhancement-candidate | 需要 ADR、repo 扫描、代码健康、风格继承、研究型文档、规格提取或重构前后质量证据，且输出范围明确 |
+| 产品 / MVP / UI 原型 | `/ecc:blueprint`、`/ecc:product-capability`、`/ecc:product-lens`、`/ecc:design-system`、`/ecc:ui-demo`、`/ecc:dashboard-builder`、`/ecc:gan-build`、`/ecc:gan-design`、`/ecc:gan-style-harness`、`ecc:gan-planner`、`ecc:gan-generator`、`ecc:gan-evaluator` | enhancement-candidate / observe-only | MVP、产品定义或高迭代 UI 原型需要时使用；GAN harness 需要用户接受较高 token、浏览器验证和多轮写入成本 |
+| 语言 / 框架专项能力 | `/ecc:react-build`、`/ecc:react-review`、`/ecc:vue-review`、`/ecc:fastapi-review`、`/ecc:go-build`、`/ecc:go-review`、`/ecc:rust-review`、对应语言 reviewer / build resolver Agent | enhancement-candidate | 当前项目技术栈明确匹配时，作为通用 build / review 的专项 Plan B；不在入口 skill 中维护完整语言矩阵 |
+| 测试 / 回归 / 性能证据 | `/ecc:ai-regression-testing`、`/ecc:benchmark`、`/ecc:benchmark-methodology`、`/ecc:benchmark-optimization-loop`、`/ecc:react-test`、`/ecc:go-test`、`/ecc:rust-test`、`/ecc:cpp-test` | enhancement-candidate | 需要可重复回归、性能或语言专项测试证据，且验证命令和通过标准明确 |
+| 迁移 / 发布 / 生产观察 | `/ecc:database-migrations`、`/ecc:deployment-patterns`、`/ecc:canary-watch`、`/ecc:production-audit`、`/ecc:production-scheduling`、`/ecc:git-workflow`、`/ecc:pr`、`/ecc:review-pr` | observe-only | 仅在迁移、发布或 PR 任务明确需要时使用；外部平台、生产环境或发布副作用必须单独确认 |
+| 领域型能力 | marketing、finance、healthcare、network、homelab、scientific、video、trade、logistics、social、investor 等相关 skill / agent | not-relevant | 入口 skill 明确转向对应领域项目，并能定义数据、凭证和外部副作用边界 |
+| 双用途安全能力 | `/ecc:security-bounty-hunter`、`/ecc:defi-amm-security`、`/ecc:llm-trading-agent-security`、`/ecc:prediction-market-risk-review`、领域安全专项能力 | observe-only | 用户提供明确授权上下文，且任务边界符合防御、审计、CTF 或授权测试要求 |
+| 外部服务 / 配置能力 | `/ecc:configure-ecc`、`/ecc:github-ops`、`/ecc:jira`、`/ecc:pm2`、`/ecc:promote`、`/ecc:social-publisher`、MCP / settings / hook 相关能力 | enhancement-candidate / observe-only | 仅在 `/agent-env`、协作平台或明确配置 / 发布任务中使用，写入 settings、hooks、MCP 或触发外部副作用前必须再次确认 |
 
 当推荐 ECC 能力不可用时，按以下顺序降级：
 
