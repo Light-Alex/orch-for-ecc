@@ -27,9 +27,7 @@ metadata:
 
 如果用户没有提供完整材料，先补齐关键缺口。推荐包含：
 
-- 已确认的任务分诊结果：目标、非目标、等级、风险、验收标准。
-- 已确认的 Agent 环境方案：允许使用的 Agent、MCP、workflow、验证与审查策略。
-- 已确认的文档初始化方案：需要读取、创建或更新的文档。
+- 通用输入材料：遵循 `orchestration/rules.md` 的“场景执行工作流通用规则 / 通用输入材料”。
 - 场景特有输入：旧技术/旧 API/旧目录结构、新目标、成功标准、回滚要求、是否允许不可逆变更。
 
 ## 核心规则
@@ -40,9 +38,7 @@ metadata:
 4. 数据迁移必须有 dry-run、备份、回滚脚本或明确不可逆确认。
 5. 大迁移可分区写入，但必须按模块/文件边界拆分，并由主 Agent 统一集成。
 6. 数据迁移、生产配置、不可逆删除、跨系统发布或验证差异无法解释时必须暂停确认。
-7. 执行前参考 `orchestration/ecc-capability-map.md` 选择迁移规划、分区执行、构建修复、审查、质量门禁和文档相关 ECC 能力，并显式列出推荐调用的 `/ecc:*` 指令。
-8. 如果 ECC 能力缺失、改名或不适用，按 Plan B 降级，并说明替代方案、能力缺口和风险。
-9. 执行时引用 `orchestration/rules.md`，结束时参考 `orchestration/report-template.md`。
+7. 通用工作流规则遵循 `orchestration/rules.md` 的“场景执行工作流通用规则”。
 
 ## 流程
 
@@ -53,6 +49,10 @@ metadata:
 5. Verify：对比旧/新行为，运行构建、测试和关键路径验证。
 6. Review：执行 correctness、security、performance 或 language-specific review。
 7. Learn：记录迁移规则、映射关系、踩坑点和后续清理项，判断是否值得沉淀为候选资产。
+
+## 执行前输出
+
+遵循 `orchestration/rules.md` 的“场景执行工作流通用规则 / 通用执行前输出”。
 
 ## 输出要求
 

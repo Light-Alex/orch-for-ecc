@@ -1,6 +1,6 @@
 ---
 name: task-triage
-description: 任务分诊与四类未知收敛；在实现前明确目标、范围、风险、场景、等级、ECC 能力组合和停止条件。
+description: 任务分诊与四类未知收敛；在实现前明确目标、范围、风险、场景、等级、能力需求初判和停止条件。
 disable-model-invocation: true
 argument-hint: "[原始任务描述、目标、约束或验收标准]"
 metadata:
@@ -27,7 +27,7 @@ metadata:
 
 - 用户明确要求“任务分诊”“四类未知分析”“未知收敛”。
 - 用户要求先判断任务属于哪类：从零开发、加新特性、重构、迁移、Bug 修复或混合场景。
-- 用户要求先判断 S/M/L/XL 等级、风险、ECC 能力组合或 Agent 派发方式。
+- 用户要求先判断 S/M/L/XL 等级、风险、能力需求或是否需要进入 Agent 环境初始化。
 - 用户明确说“先分诊，不要实现”。
 
 ## 不适用场景
@@ -45,8 +45,9 @@ metadata:
 5. 必须做 blind spot pass，检查权限、安全、数据、迁移、回滚、性能、兼容性、测试可行性、外部副作用、文档冲突、发布影响、多 Agent 写入冲突、上下文污染和 MCP 必要性。
 6. 已有项目任务可以建议使用 CodeGraph 或只读探索 Agent 确认影响面；本阶段不要写代码。
 7. 用户确认前，不写入最终 `diagnosis.md`，不进入下一阶段。
-8. 优先参考 `orchestration/ecc-capability-map.md` 查询当前可用 ECC 能力，并在“建议能力组合”中显式列出推荐调用的 `/ecc:*` 指令。
-9. 如果推荐 ECC 能力缺失、改名或不适用，必须给出 Plan B，并说明替代方案的风险和能力缺口。
+8. 优先参考 `orchestration/ecc-capability-map.md` 判断当前任务可能需要的 ECC 能力类别，但本阶段只做能力需求初判，不展开具体 Agent、MCP、workflow 或命令派发方案。
+9. 如果可能需要的 ECC 能力类别存在缺失、改名或不适用风险，只记录为 `/agent-env` 需要处理的能力缺口和 Plan B 输入。
+10. 如果用户或项目提供 `references/`，按 `orchestration/reference-inputs.md` 将其作为只读参考输入，用于识别目标、范围、非目标、风险、验收候选和冲突；不得把 references 内容自动视为验收标准。
 
 ## 四类未知
 
@@ -82,6 +83,7 @@ metadata:
 - 非目标：
 - 约束：
 - 验收标准：
+- 参考输入：`references/...`；用途：；影响的分诊判断：
 
 ### Known Unknowns
 | 问题 | 为什么重要 | 用户回答 | 对执行方案的影响 |
@@ -103,29 +105,38 @@ metadata:
 - 等级：S / M / L / XL
 - 理由：
 
-## 4. 建议能力组合
-- Hook Profile：minimal / standard / strict
+## 4. 能力需求初判
+- Hook Profile 倾向：minimal / standard / strict；理由：
 - CodeGraph：需要 / 不需要；理由：
-- ECC 能力调用计划：
-  | 阶段 | 推荐 `/ecc:*` 指令 | 用途 | Plan B |
+- ECC 能力类别：
+  | 能力类别 | 是否需要 | 理由 | 交由 `/agent-env` 细化 |
   |---|---|---|---|
-- Commands：
-- Agents：
-- Workflows：
-- MCP：
-- Checkpoint：
+  | 规划 | | | 是 / 否 |
+  | 代码探索 | | | 是 / 否 |
+  | 实现 | | | 是 / 否 |
+  | 构建修复 | | | 是 / 否 |
+  | 代码审查 | | | 是 / 否 |
+  | 安全审查 | | | 是 / 否 |
+  | 性能审查 | | | 是 / 否 |
+  | 文档更新 | | | 是 / 否 |
+  | E2E / 可观察验证 | | | 是 / 否 |
+- 多 Agent：需要 / 不需要 / 待确认；理由：
+- MCP：需要 / 不需要 / 待确认；理由：
+- Workflow：需要 / 不需要 / 待确认；理由：
+- Checkpoint：需要 / 不需要；理由：
 
-## 5. Agent 派发建议
-- 探索类 Agent：
-- implementer / coder Agent：
-- build-fix Agent：
-- code-reviewer：
-- security-reviewer：
-- performance-reviewer：
-- docs-lookup：
-- verify / e2e Agent：
-- 哪些 Agent 可写：
-- 哪些 Agent 只读：
+## 5. Agent 环境初始化建议
+- 是否建议进入 `/agent-env`：Yes / No
+- 理由：
+- `/agent-env` 需要重点处理：
+  - Agent 读写权限
+  - 具体 `/ecc:*` 指令和可选 `ecc:*` Agent
+  - MCP 配置建议
+  - Workflow 策略
+  - Commands / Hooks
+  - 验证门禁
+  - 上下文裁剪
+  - 能力缺口和 Plan B
 
 ## 6. 停止条件
 - ...

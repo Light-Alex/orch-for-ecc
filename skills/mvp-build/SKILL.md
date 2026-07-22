@@ -27,9 +27,7 @@ metadata:
 
 如果用户没有提供完整材料，先补齐关键缺口。推荐包含：
 
-- 已确认的任务分诊结果：目标、非目标、等级、风险、验收标准。
-- 已确认的 Agent 环境方案：允许使用的 Agent、MCP、workflow、验证与审查策略。
-- 已确认的文档初始化方案：需要读取、创建或更新的文档。
+- 通用输入材料：遵循 `orchestration/rules.md` 的“场景执行工作流通用规则 / 通用输入材料”。
 - 场景特有输入：目标用户、MVP 成功标准、明确不做的功能。
 
 ## 核心规则
@@ -39,9 +37,7 @@ metadata:
 3. 不默认启用全部 MCP；只有需要 GitHub、浏览器、部署平台或外部系统时才启用。
 4. 不让多个 Agent 同时修改同一批项目骨架文件。
 5. 遇到外部发布、真实支付、短信、邮件、生产数据、不可逆操作时暂停确认。
-6. 执行前参考 `orchestration/ecc-capability-map.md` 选择 MVP、项目初始化、实现、验证和文档相关 ECC 能力，并显式列出推荐调用的 `/ecc:*` 指令。
-7. 如果 ECC 能力缺失、改名或不适用，按 Plan B 降级，并说明替代方案、能力缺口和风险。
-8. 执行时引用 `orchestration/rules.md`，结束时参考 `orchestration/report-template.md`。
+6. 通用工作流规则遵循 `orchestration/rules.md` 的“场景执行工作流通用规则”。
 
 ## 流程
 
@@ -52,6 +48,10 @@ metadata:
 5. Review：至少做 correctness review；高风险路径增加 security review。
 6. Report：说明完成范围、未做内容、风险和下一步。
 7. Learn：判断是否有稳定的项目初始化步骤值得沉淀为候选 skill / command / workflow。
+
+## 执行前输出
+
+遵循 `orchestration/rules.md` 的“场景执行工作流通用规则 / 通用执行前输出”。
 
 ## 输出要求
 
