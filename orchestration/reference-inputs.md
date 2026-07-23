@@ -8,7 +8,7 @@ status: experimental
 # 参考输入源规则
 
 > 这是共享参考文件，不作为独立 skill 触发。
-> `references/` 是人工维护的参考材料区，会影响 `/task-triage`、`/agent-env`、`/task-docs`、`/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe`、`/migrate-safe`。
+> `references/` 是人工维护的参考材料区，会影响 `/task-triage`、`/agent-env`、`/task-docs`、`/mvp-build`、`/feature-add`、`/feature-change`、`/bug-fix`、`/refactor-safe`、`/migrate-safe`。
 
 ## 定义
 
@@ -51,7 +51,7 @@ status: experimental
 - 不自动把 `references/` 晋升为正式 `docs/`、`releases/` 或验收清单。
 - 如果 reference 与正式文档或代码事实冲突，应在文档计划或实现记录中记录冲突，并提示用户确认。
 
-### `/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe`、`/migrate-safe`
+### `/mvp-build`、`/feature-add`、`/feature-change`、`/bug-fix`、`/refactor-safe`、`/migrate-safe`
 
 - 将相关 `references/` 作为生成 `implementation-plan.md` 时的只读参考来源。
 - Discover / Decide 阶段可以读取 reference 帮助理解和对比。

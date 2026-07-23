@@ -34,6 +34,14 @@ ECC 能力分为三层：
 6. 涉及写入、发布、删除、迁移、真实外部副作用或生产数据时，必须保留用户确认门禁。
 7. 本项目 skill 是编排器，ECC 插件是优先执行器；不要在项目内 skill 中重复实现 ECC 插件已有能力。
 
+## ECC `orch-*` 接入约定
+
+1. 执行场景 skill(`/mvp-build`、`/feature-add`、`/feature-change`、`/refactor-safe`、`/migrate-safe`、`/bug-fix`) 优先把职责匹配的 ECC `orch-*` 指令作为执行器，而不是在项目内重复实现同类流水线。
+2. 选择规则：当前不存在的新能力优先 `/ecc:orch-add-feature`；已有功能按新规格改变行为优先 `/ecc:orch-change-feature`；既有预期被破坏优先 `/ecc:orch-fix-defect`；行为不变的结构优化优先 `/ecc:orch-refine-code`；从 spec / doc 构建 MVP 优先 `/ecc:orch-build-mvp`；最终 diff / PR 审查优先 `/ecc:orch-review`。
+3. 调用前必须在 `implementation-plan.md` 中显式列出目标、非目标、验收标准、写入边界、验证命令、推荐 ECC 指令和 Plan B。
+4. `/ecc:orch-review` 适合作为有 diff 的最终审查门禁；无 diff、只读审查或轻量检查时可降级为 `/ecc:code-review`、语言 reviewer 或手动 checklist。
+5. ECC `orch-*` 不可用、改名或粒度不适合时，按本文件的 Plan B 降级，并在交付报告中说明能力缺口和替代风险。
+
 ## 通用能力映射
 
 | 需求 | 优先 ECC 能力 | 用途 | Plan B |
@@ -44,7 +52,7 @@ ECC 能力分为三层：
 | 功能开发 | `/ecc:feature-dev` | 执行常规功能开发 | 主 Agent 实现；按任务 skill 的流程执行 |
 | 多 Agent 规划 | `/ecc:multi-plan`、`/ecc:multi-workflow` | 多 Agent 拆分与编排 | 手动拆分 Agent 角色；限制写入边界 |
 | 构建修复 | `/ecc:build-fix` | 修复 build / type / compile 错误 | 对应 build resolver agent；手动分析错误日志 |
-| 代码审查 | `/ecc:code-review` | correctness / maintainability review | 内建 code-review；对应语言 reviewer agent；手动 checklist |
+| 代码审查 | `/ecc:orch-review`、`/ecc:code-review` | 有 diff / PR 时进行 fail-closed 多维审查；轻量或只读场景做 correctness / maintainability review | 内建 code-review；对应语言 reviewer agent；手动 checklist |
 | 安全扫描 | `/ecc:security-scan` | 安全风险检查 | security-review；security-reviewer agent；手动 OWASP checklist |
 | 测试覆盖 | `/ecc:test-coverage` | 检查测试充分性 | 手动运行测试；pr-test-analyzer agent |
 | 质量门禁 | `/ecc:quality-gate` | 聚合测试、lint、build、审查结果 | 手动运行 test / lint / build 并汇总 |
@@ -130,12 +138,23 @@ ECC Agent 是 `/ecc:*` 指令之外的可见专项能力。指令型能力适合
 
 | 阶段 | 优先 ECC 能力 | 用途 | Plan B |
 | --- | --- | --- | --- |
-| 探索 | `/ecc:plan`、`/ecc:orch-add-feature`、`/ecc:orch-change-feature`、`/ecc:codebase-onboarding`、`/ecc:code-tour`、`/ecc:search-first` | 探索相似实现、调用链、权限点和代码结构；修改已有功能时可优先考虑 `/ecc:orch-change-feature`；不确定入口时先搜索 | CodeGraph / 只读探索 Agent / 手动读取代码 |
+| 探索 | `/ecc:plan`、`/ecc:orch-add-feature`、`/ecc:codebase-onboarding`、`/ecc:code-tour`、`/ecc:search-first` | 探索相似实现、调用链、权限点和代码结构；如果发现目标其实是已有功能行为变化，应转入 `/feature-change` | CodeGraph / 只读探索 Agent / 手动读取代码 |
 | 设计 | `/ecc:api-design`、`/ecc:backend-patterns`、`/ecc:frontend-patterns`、`/ecc:mcp-server-patterns` | 按技术栈补充 API、前端、后端或 MCP 设计约束 | 主 Agent 按现有架构手动设计 |
-| 实现 | `/ecc:feature-dev` | 新增功能并控制改动范围 | 主 Agent 实现，避免顺手重构 |
+| 实现 | `/ecc:orch-add-feature`、`/ecc:feature-dev` | 新增当前不存在的功能并控制改动范围 | 主 Agent 实现，避免顺手重构 |
 | 构建修复 | `/ecc:build-fix` | 修复新增功能引起的构建问题 | 对应 build resolver agent |
-| 审查 | `/ecc:code-review` | 检查正确性、维护性、边界 | 内建 code-review 或语言 reviewer agent |
+| 审查 | `/ecc:orch-review`、`/ecc:code-review` | 检查正确性、维护性、边界；有 diff 时优先使用 `/ecc:orch-review` | 内建 code-review 或语言 reviewer agent |
 | 门禁 | `/ecc:quality-gate` | 汇总验证结果 | 手动 test / lint / build |
+
+### `/feature-change`
+
+| 阶段 | 优先 ECC 能力 | 用途 | Plan B |
+| --- | --- | --- | --- |
+| 行为确认 | `/ecc:plan`、`/ecc:orch-change-feature`、`/ecc:search-first` | 明确旧行为、新行为、调用方、既有测试和兼容影响 | CodeGraph / 只读探索 Agent / 手动读取代码 |
+| 设计 | `/ecc:api-design`、`/ecc:backend-patterns`、`/ecc:frontend-patterns` | 新规格影响 API、后端、前端或交互时补充约束 | 主 Agent 按现有架构手动设计 |
+| 实现 | `/ecc:orch-change-feature`、`/ecc:feature-dev` | 先更新既有测试表达新行为，再调整实现 | 主 Agent changed-test-first 实现 |
+| 构建修复 | `/ecc:build-fix` | 修复行为变更引起的构建问题 | 对应 build resolver agent |
+| 审查 | `/ecc:orch-review`、`/ecc:code-review` | 检查新行为、副作用和兼容性；有 diff 时优先使用 `/ecc:orch-review` | 内建 code-review 或语言 reviewer agent |
+| 门禁 | `/ecc:quality-gate` | 汇总测试、lint、build、review | 手动 test / lint / build |
 
 ### `/refactor-safe`
 
@@ -145,7 +164,7 @@ ECC Agent 是 `/ecc:*` 指令之外的可见专项能力。指令型能力适合
 | 清理执行 | `/ecc:refactor-clean` | 删除重复、死代码或简化结构 | code-simplifier / refactor-cleaner agent |
 | 质量证据 | `/ecc:plankton-code-quality`、`/ecc:codehealth-mcp`、`/ecc:ai-regression-testing` | 按需补充代码健康、回归证据或质量指标 | 手动 checklist；相关测试和审查 |
 | 验证 | `/ecc:quality-gate`、`/ecc:test-coverage`、`/ecc:verification-loop` | 每阶段验证行为不变，必要时循环验证关键路径 | 手动运行相关测试 |
-| 审查 | `/ecc:code-review`、`/ecc:error-handling` | 检查行为不变、可维护性、错误处理和风险 | 内建 code-review 或 reviewer agent |
+| 审查 | `/ecc:orch-review`、`/ecc:code-review`、`/ecc:error-handling` | 检查行为不变、可维护性、错误处理和风险；有 diff 时优先使用 `/ecc:orch-review` | 内建 code-review 或 reviewer agent |
 
 ### `/migrate-safe`
 
@@ -155,7 +174,7 @@ ECC Agent 是 `/ecc:*` 指令之外的可见专项能力。指令型能力适合
 | 分区执行 | `/ecc:multi-execute`、`/ecc:parallel-execution-optimizer` | 多 Agent 分区执行受控迁移，并优化并发边界 | 主 Agent 串行执行；限制写入边界 |
 | 运行观察 | `/ecc:canary-watch`、`/ecc:production-audit` | 明确生产 / canary 观察需求且用户授权时使用 | 手动检查发布状态；用户提供观测结果 |
 | 构建修复 | `/ecc:build-fix` | 修复迁移导致的构建问题 | 对应 build resolver agent |
-| 审查 | `/ecc:code-review`、`/ecc:security-scan`、`/ecc:delivery-gate` | 检查兼容性、安全、副作用和交付门禁 | reviewer / security-reviewer agent |
+| 审查 | `/ecc:orch-review`、`/ecc:code-review`、`/ecc:security-scan`、`/ecc:delivery-gate` | 检查兼容性、安全、副作用和交付门禁；有 diff 时优先使用 `/ecc:orch-review` | reviewer / security-reviewer agent |
 | 门禁 | `/ecc:quality-gate` | 旧/新行为对比、测试、lint、build | 手动验证和差异说明 |
 | 文档 | `/ecc:update-docs` | 更新迁移说明、回滚说明、release notes | 手动更新 `docs/` 和 `releases/` |
 
@@ -168,7 +187,7 @@ ECC Agent 是 `/ecc:*` 指令之外的可见专项能力。指令型能力适合
 | 修复 | `/ecc:feature-dev`、`/ecc:error-handling` | 做最小修复，必要时专项检查错误处理路径 | 主 Agent 最小改动 |
 | 浏览器 / 路径复现 | `/ecc:click-path-audit`、`/ecc:browser-qa` | Web UI 或关键点击路径 bug 需要可观察复现时使用 | 手动浏览器验证；Playwright / DevTools |
 | 防回归 | `/ecc:test-coverage`、`/ecc:verification-loop`、`/ecc:ai-regression-testing` | 增加或检查回归测试，循环验证关键复现路径；需要 AI 回归证据时按需使用 | 手动增加失败测试 / 回归用例 |
-| 审查 | `/ecc:code-review`、`/ecc:security-scan` | 检查副作用和安全风险 | 内建 code-review / security-review |
+| 审查 | `/ecc:orch-review`、`/ecc:code-review`、`/ecc:security-scan` | 检查副作用和安全风险；有 diff 时优先使用 `/ecc:orch-review` | 内建 code-review / security-review |
 | 门禁 | `/ecc:quality-gate` | 汇总复现路径、测试和验证结果 | 手动运行相关验证命令 |
 
 ## MCP 配置模板参考

@@ -67,7 +67,7 @@ metadata:
 - `diagnosis.md`：任务分诊结果。
 - `agent-environment.md`：Agent 环境初始化方案。
 - `document-initialization.md`：文档初始化方案。
-- `implementation-plan.md`：实施计划审批件；不由 `/task-docs` 生成，由 `/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe` 或 `/migrate-safe` 参照 `orchestration/workflow-execution-template.md` 生成。
+- `implementation-plan.md`：实施计划审批件；不由 `/task-docs` 生成，由 `/mvp-build`、`/feature-add`、`/feature-change`、`/bug-fix`、`/refactor-safe` 或 `/migrate-safe` 参照 `templates/workflow-execution-template.md` 生成。
 - `progress.md`：进度记录。
 - `implementation-notes.md`：Agent 审计日志、关键决策、偏离计划和上下文备注。
 - `delivery-report.md`：交付报告。
@@ -158,7 +158,7 @@ metadata:
 2. 文档分类和 S/M/L/XL 文档策略必须使用同一套文档名。
 3. 如果项目已有文档命名和目录规范，优先沿用项目规范；但输出时必须说明与默认文档名的对应关系。
 4. 同一个文档同一阶段只允许一个最终写入/合并方；专家 Agent 可以给建议，但由最终写入/合并方合并。
-5. `/task-docs` 不生成 `.claude/runs/<date>-<task-slug>/implementation-plan.md`；该文件由 `/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe` 或 `/migrate-safe` 在执行前参照 `orchestration/workflow-execution-template.md` 生成，并经用户审批后作为实施基线。
+5. `/task-docs` 不生成 `.claude/runs/<date>-<task-slug>/implementation-plan.md`；该文件由 `/mvp-build`、`/feature-add`、`/feature-change`、`/bug-fix`、`/refactor-safe` 或 `/migrate-safe` 在执行前参照 `templates/workflow-execution-template.md` 生成，并经用户审批后作为实施基线。
 6. 不保存 secrets、token、真实用户隐私或生产敏感数据。
 7. 文档是约束源，但不是不可质疑的真理；如果文档与代码、测试或真实系统行为冲突，必须暂停确认。
 8. `.claude/runs/` 默认是过程资产；长期价值内容再晋升到 `docs/`、`rules/`、`skills/` 或 `workflows/`。
@@ -213,7 +213,7 @@ metadata:
 1. ...
 
 ## 下一步
-- 用户确认后：选择 `/mvp-build`、`/feature-add`、`/refactor-safe`、`/migrate-safe` 或 `/bug-fix`。
+- 用户确认后：选择 `/mvp-build`、`/feature-add`、`/feature-change`、`/refactor-safe`、`/migrate-safe` 或 `/bug-fix`。
 - 用户修改后：更新文档初始化方案。
 - 环境方案不足时：回退到 `/agent-env`。
 ```

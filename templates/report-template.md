@@ -8,7 +8,7 @@ status: experimental
 # 交付报告模板
 
 > 这是共享参考文件，不作为独立 skill 触发。
-> 执行类 skill 应在任务结束时按需引用本模板。
+> 执行场景 skill 应在任务结束时按需引用本模板。
 
 ```markdown
 # Delivery Report

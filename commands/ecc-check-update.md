@@ -132,11 +132,11 @@ node scripts/ecc-check-update.js
 
 ## 升级机会分析
 
-当脚本发现 `summary.newCapabilities: PRESENT`，或 `analysisRequired` 包含 `newSkillCommands` / `newAgents` 时，不要直接把所有新增能力写入项目映射。应由 Claude 基于当前 8 个入口 skill 的职责做语义分析：
+当脚本发现 `summary.newCapabilities: PRESENT`，或 `analysisRequired` 包含 `newSkillCommands` / `newAgents` 时，不要直接把所有新增能力写入项目映射。应由 Claude 基于当前入口 skill 的职责做语义分析：
 
 | 维度 | 需要判断的问题 |
 | --- | --- |
-| 场景匹配 | 新能力是否对应 `/task-triage`、`/agent-env`、`/task-docs`、`/mvp-build`、`/feature-add`、`/refactor-safe`、`/migrate-safe`、`/bug-fix` 的某个阶段？ |
+| 场景匹配 | 新能力是否对应 `/task-triage`、`/agent-env`、`/task-docs`、`/mvp-build`、`/feature-add`、`/feature-change`、`/refactor-safe`、`/migrate-safe`、`/bug-fix` 的某个阶段？ |
 | 替换价值 | 是否比当前推荐能力更准确、更强或风险更低？ |
 | 增强价值 | 是否适合作为可选能力或 Plan B，而不是替换现有能力？ |
 | 副作用 | 是否引入写入、外部服务、凭证、生产数据或不可逆风险？ |
@@ -281,7 +281,7 @@ node scripts/ecc-check-update.js
 2. 先输出差异点、升级机会分析和 update 计划，不直接写入。
 3. 不自动删除项目能力映射中的能力；缺失能力可能是解析缺口、插件未启用、命令改名或当前环境异常。
 4. 不自动把 ECC 新增的所有 `/ecc:*` 指令或 `ecc:*` Agent 加入项目映射；新增能力默认只作为可选升级机会，必须先按场景匹配、替换价值、增强价值、副作用和稳定性分析。
-5. 只有确认更适合当前 8 个入口 skill 的新增能力，才生成待审批替换或增强建议。
+5. 只有确认更适合当前入口 skill 的新增能力，才生成待审批替换或增强建议。
 6. MCP 配置模板清单以当前环境 `mcp-configs/mcp-servers.json` 为准；若不一致，只刷新 `ecc-capability-map.md` 中的模板参考区。
 7. 对疑似改名的能力，只输出候选替代，不自动替换。
 8. 用户审批前不写入项目文件。

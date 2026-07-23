@@ -30,7 +30,7 @@ status: experimental
 
 ## 场景执行 skill 通用规则
 
-适用于 `/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe`、`/migrate-safe`。
+适用于 `/mvp-build`、`/feature-add`、`/feature-change`、`/bug-fix`、`/refactor-safe`、`/migrate-safe`。
 
 ### 通用输入材料
 
@@ -46,17 +46,17 @@ status: experimental
 
 ### 通用工作流规则
 
-1. `/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe`、`/migrate-safe` 执行前参考 `orchestration/ecc-capability-map.md` 和已确认的 Agent 环境方案，选择本场景相关 ECC 能力；实施计划中必须落到具体 `/ecc:*` 指令或 `ecc:<agent>`。
-2. `/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe`、`/migrate-safe` 执行前必须基于 `orchestration/workflow-execution-template.md` 生成 `.claude/runs/<date>-<task-slug>/implementation-plan.md`，说明每个阶段的 ECC 指令 / Agent、Plan B、写入边界和自动执行边界，供用户审批。
+1. `/mvp-build`、`/feature-add`、`/feature-change`、`/bug-fix`、`/refactor-safe`、`/migrate-safe` 执行前参考 `orchestration/ecc-capability-map.md` 和已确认的 Agent 环境方案，选择本场景相关 ECC 能力；实施计划中必须落到具体 `/ecc:*` 指令或 `ecc:<agent>`。
+2. `/mvp-build`、`/feature-add`、`/feature-change`、`/bug-fix`、`/refactor-safe`、`/migrate-safe` 执行前必须基于 `templates/workflow-execution-template.md` 生成 `.claude/runs/<date>-<task-slug>/implementation-plan.md`，说明每个阶段的 ECC 指令 / Agent、Plan B、写入边界和自动执行边界，供用户审批。
 3. 用户审批 `implementation-plan.md` 后，对应 skill 才能按该计划进入实施。
 4. 执行时以已审批执行基线为准，不重新分诊、不重新初始化环境、不主动改写 `diagnosis.md`、`agent-environment.md`、`document-initialization.md`、`implementation-plan.md`、`docs/...`、`releases/...` 或 `references/...`。
 5. `references/` 只能按 `orchestration/reference-inputs.md` 作为人工只读参考输入；其 draft 需求或参考实现不自动成为验收标准，除非已被审批文档吸收。
 6. 如果 ECC 能力缺失、改名或不适用，按 Plan B 降级，并说明替代方案、能力缺口和风险。
-7. 执行时引用本文件，结束时参考 `orchestration/report-template.md`。
+7. 执行时引用本文件，结束时参考 `templates/report-template.md`。
 
 ### 通用执行前输出
 
-实际执行前，`/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe`、`/migrate-safe` 必须按 `orchestration/workflow-execution-template.md` 生成 `.claude/runs/<date>-<task-slug>/implementation-plan.md` 供用户审批，至少包含：
+实际执行前，`/mvp-build`、`/feature-add`、`/feature-change`、`/bug-fix`、`/refactor-safe`、`/migrate-safe` 必须按 `templates/workflow-execution-template.md` 生成 `.claude/runs/<date>-<task-slug>/implementation-plan.md` 供用户审批，至少包含：
 
 - 执行基线；
 - 场景化执行流程；

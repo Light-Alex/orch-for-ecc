@@ -27,7 +27,7 @@ metadata:
 
 如果用户没有提供完整材料，先补齐关键缺口。推荐包含：
 
-- 通用输入材料：遵循 `orchestration/rules.md` 的“场景执行 skill 通用规则 / 通用输入材料”。
+- 通用输入材料：遵循 `orchestration/rules.md` 的“执行场景 skill 通用规则 / 通用输入材料”。
 - 场景特有输入：目标用户、MVP 成功标准、明确不做的功能。
 
 ## 核心规则
@@ -37,7 +37,7 @@ metadata:
 3. 不默认启用全部 MCP；只有需要 GitHub、浏览器、部署平台或外部系统时才启用。
 4. 不让多个 Agent 同时修改同一批项目骨架文件。
 5. 遇到外部发布、真实支付、短信、邮件、生产数据、不可逆操作时暂停确认。
-6. 通用工作流规则遵循 `orchestration/rules.md` 的“场景执行 skill 通用规则”。
+6. 通用工作流规则遵循 `orchestration/rules.md` 的“执行场景 skill 通用规则”。
 
 ## 流程
 
@@ -51,7 +51,7 @@ metadata:
 
 ## 执行前输出
 
-遵循 `orchestration/rules.md` 的“场景执行 skill 通用规则 / 通用执行前输出”。
+遵循 `orchestration/rules.md` 的“执行场景 skill 通用规则 / 通用执行前输出”。
 
 ## 输出要求
 

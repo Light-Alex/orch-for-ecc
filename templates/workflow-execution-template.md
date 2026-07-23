@@ -8,12 +8,12 @@ status: experimental
 # implementation-plan.md 模板
 
 > 这是共享参考文件，不作为独立 skill 触发。
-> `/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe`、`/migrate-safe` 应在执行前基于本模板生成 `.claude/runs/<date>-<task-slug>/implementation-plan.md`，供用户审批。
+> `/mvp-build`、`/feature-add`、`/feature-change`、`/bug-fix`、`/refactor-safe`、`/migrate-safe` 应在执行前基于本模板生成 `.claude/runs/<date>-<task-slug>/implementation-plan.md`，供用户审批。
 
 ## 使用原则
 
 1. `implementation-plan.md` 以已审批任务材料为基线，不重新分诊、不重新初始化环境、不重新规划文档。
-2. `/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe`、`/migrate-safe` 只负责说明：在当前场景下，每个阶段如何使用已允许的 `/ecc:*` 指令、`ecc:<agent>`、内建能力和 Plan B。
+2. `/mvp-build`、`/feature-add`、`/feature-change`、`/bug-fix`、`/refactor-safe`、`/migrate-safe` 只负责说明：在当前场景下，每个阶段如何使用已允许的 `/ecc:*` 指令、`ecc:<agent>`、内建能力和 Plan B。
 3. 用户审批 `implementation-plan.md` 后，对应 skill 才能进入实施；开始后默认在“自动执行边界”内持续推进，只有越界、风险升级或基线冲突时才暂停确认。
 4. 每个阶段必须尽量落到具体 `/ecc:*` 指令或 `ecc:<agent>` 名称；如果没有合适能力，Plan B 必须说明具体由谁用什么方式完成。
 5. 同一批文件同一阶段只允许一个最终写入/合并方；探索、审查、安全、性能、文档建议类 Agent 默认只读。

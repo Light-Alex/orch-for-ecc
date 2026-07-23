@@ -1,6 +1,6 @@
 ---
 name: feature-add
-description: 已有项目加新特性工作流；先探索相似实现、调用链、权限点和测试样式，再做必要改动并验证。
+description: 已有项目新增特性工作流；先探索相似实现、调用链、权限点和测试样式，再新增当前不存在的能力并验证。
 disable-model-invocation: true
 argument-hint: "[已确认执行材料：分诊、环境、文档方案、目标功能和约束]"
 metadata:
@@ -14,20 +14,22 @@ metadata:
   requires: [task-triage, agent-env, task-docs]
   capabilityMap: orchestration/ecc-capability-map.md
 ---
-# 已有项目加新特性
+# 已有项目新增特性
 
 > 触发方式：仅当用户输入 `/feature-add` 时使用。
 > 不要根据普通自然语言请求自动套用本 skill。
 
 ## 用途
 
-用于在已有项目中增加新功能或新行为。重点是先理解现有实现、调用链、权限点和测试样式，再做必要改动，不顺手重构无关代码。
+用于在已有项目中增加当前不存在的新功能、新入口或新能力。重点是先理解现有实现、调用链、权限点和测试样式，再做必要新增，不顺手重构无关代码。
+
+如果已有功能工作正常但要按新规格改变行为，使用 `/feature-change`。如果当前行为违反既有预期、崩溃或回归，使用 `/bug-fix`。
 
 ## 输入材料
 
 如果用户没有提供完整材料，先补齐关键缺口。推荐包含：
 
-- 通用输入材料：遵循 `orchestration/rules.md` 的“场景执行 skill 通用规则 / 通用输入材料”。
+- 通用输入材料：遵循 `orchestration/rules.md` 的“执行场景 skill 通用规则 / 通用输入材料”。
 - 场景特有输入：目标功能、优先修改范围、兼容性/权限/性能/UI/接口约束。
 
 ## 核心规则
@@ -37,7 +39,7 @@ metadata:
 3. 影响面不清楚时，先派只读探索，不直接写代码。
 4. 涉及认证、权限、计费、数据写入、数据导出或外部副作用时，升级风险并暂停确认。
 5. 多个 Agent 不应并行修改同一批文件；如需并行写入，必须先按模块或文件边界拆分。
-6. 通用工作流规则遵循 `orchestration/rules.md` 的“场景执行 skill 通用规则”。
+6. 通用工作流规则遵循 `orchestration/rules.md` 的“执行场景 skill 通用规则”。
 
 ## 流程
 
@@ -51,7 +53,7 @@ metadata:
 
 ## 执行前输出
 
-遵循 `orchestration/rules.md` 的“场景执行 skill 通用规则 / 通用执行前输出”。
+遵循 `orchestration/rules.md` 的“执行场景 skill 通用规则 / 通用执行前输出”。
 
 ## 输出要求
 
