@@ -8,7 +8,7 @@ status: experimental
 # 交付报告模板
 
 > 这是共享参考文件，不作为独立 skill 触发。
-> 执行场景 skill 应在任务结束时按需引用本模板。
+> 执行场景 skill 应在任务结束时按需引用本模板；即使具体实施流程交给 ECC `orch-*`，交付报告仍按本模板记录结果、证据和偏离。
 
 ```markdown
 # Delivery Report

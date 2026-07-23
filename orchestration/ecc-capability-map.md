@@ -36,11 +36,13 @@ ECC 能力分为三层：
 
 ## ECC `orch-*` 接入约定
 
-1. 执行场景 skill(`/mvp-build`、`/feature-add`、`/feature-change`、`/refactor-safe`、`/migrate-safe`、`/bug-fix`) 优先把职责匹配的 ECC `orch-*` 指令作为执行器，而不是在项目内重复实现同类流水线。
+1. 执行场景 skill（定义见 `orchestration/rules.md`）优先把职责匹配的 ECC `orch-*` 指令作为执行器，而不是在项目内重复实现同类流水线。
 2. 选择规则：当前不存在的新能力优先 `/ecc:orch-add-feature`；已有功能按新规格改变行为优先 `/ecc:orch-change-feature`；既有预期被破坏优先 `/ecc:orch-fix-defect`；行为不变的结构优化优先 `/ecc:orch-refine-code`；从 spec / doc 构建 MVP 优先 `/ecc:orch-build-mvp`；最终 diff / PR 审查优先 `/ecc:orch-review`。
 3. 调用前必须在 `implementation-plan.md` 中显式列出目标、非目标、验收标准、写入边界、验证命令、推荐 ECC 指令和 Plan B。
-4. `/ecc:orch-review` 适合作为有 diff 的最终审查门禁；无 diff、只读审查或轻量检查时可降级为 `/ecc:code-review`、语言 reviewer 或手动 checklist。
-5. ECC `orch-*` 不可用、改名或粒度不适合时，按本文件的 Plan B 降级，并在交付报告中说明能力缺口和替代风险。
+4. 如果某阶段选择 ECC `orch-*` 指令作为执行器，则该阶段的具体实施流程以 `orch-*` 内建流程为主；执行场景 skill 内的阶段流程仅作为 `orch-*` 不可用、不适配或用户明确不使用时的 Plan B。
+5. 无论是否使用 ECC `orch-*`，执行期记录与交付文档仍按 `templates/workflow-execution-template.md` 的“执行期记录与交付”要求维护。
+6. `/ecc:orch-review` 适合作为有 diff 的最终审查门禁；无 diff、只读审查或轻量检查时可降级为 `/ecc:code-review`、语言 reviewer 或手动 checklist。
+7. ECC `orch-*` 不可用、改名或粒度不适合时，按本文件的 Plan B 降级，并在交付报告中说明能力缺口和替代风险。
 
 ## 通用能力映射
 

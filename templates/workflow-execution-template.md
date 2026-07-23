@@ -13,12 +13,14 @@ status: experimental
 ## 使用原则
 
 1. `implementation-plan.md` 以已审批任务材料为基线，不重新分诊、不重新初始化环境、不重新规划文档。
-2. `/mvp-build`、`/feature-add`、`/feature-change`、`/bug-fix`、`/refactor-safe`、`/migrate-safe` 只负责说明：在当前场景下，每个阶段如何使用已允许的 `/ecc:*` 指令、`ecc:<agent>`、内建能力和 Plan B。
-3. 用户审批 `implementation-plan.md` 后，对应 skill 才能进入实施；开始后默认在“自动执行边界”内持续推进，只有越界、风险升级或基线冲突时才暂停确认。
-4. 每个阶段必须尽量落到具体 `/ecc:*` 指令或 `ecc:<agent>` 名称；如果没有合适能力，Plan B 必须说明具体由谁用什么方式完成。
-5. 同一批文件同一阶段只允许一个最终写入/合并方；探索、审查、安全、性能、文档建议类 Agent 默认只读。
-6. `references/` 是人工维护的参考材料区，使用规则见 `orchestration/reference-inputs.md`；Agent 只能读取和引用，不生成、不修改、不清理；其内容不自动成为验收标准。
-7. Learn 阶段产生的内容只能进入候选区，不自动晋升为正式 skill、rule、workflow、hook 或长期记忆。
+2. 执行场景 skill 只负责说明：在当前场景下，每个阶段如何使用已允许的 `/ecc:*` 指令、`ecc:<agent>`、内建能力和 Plan B。
+3. 如果某阶段选择 ECC `orch-*` 指令作为执行器，则该阶段的具体实施流程以 `orch-*` 内建流程为主；执行场景 skill 的阶段流程仅作为 `orch-*` 不可用、不适配或用户明确不使用时的 Plan B。
+4. 无论是否使用 ECC `orch-*`，执行期记录与交付文档仍按本模板“执行期记录与交付”要求维护。
+5. 用户审批 `implementation-plan.md` 后，对应 skill 才能进入实施；开始后默认在“自动执行边界”内持续推进，只有越界、风险升级或基线冲突时才暂停确认。
+6. 每个阶段必须尽量落到具体 `/ecc:*` 指令或 `ecc:<agent>` 名称；如果没有合适能力，Plan B 必须说明具体由谁用什么方式完成。
+7. 同一批文件同一阶段只允许一个最终写入/合并方；探索、审查、安全、性能、文档建议类 Agent 默认只读。
+8. `references/` 是人工维护的参考材料区，使用规则见 `orchestration/reference-inputs.md`；Agent 只能读取和引用，不生成、不修改、不清理；其内容不自动成为验收标准。
+9. Learn 阶段产生的内容只能进入候选区，不自动晋升为正式 skill、rule、workflow、hook 或长期记忆。
 
 ## 输出格式
 
