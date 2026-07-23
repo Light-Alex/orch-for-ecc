@@ -28,31 +28,35 @@ status: experimental
 14. 如果初始化文档与当前代码、测试或真实系统行为冲突，暂停确认，不要擅自选择一边。
 15. 任务结束前做学习判断：只把稳定、跨任务可复用的经验作为候选沉淀，不自动写入永久资产。
 
-## 场景执行工作流通用规则
+## 场景执行 skill 通用规则
+
+适用于 `/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe`、`/migrate-safe`。
 
 ### 通用输入材料
 
-执行类场景 skill 默认以以下材料为输入：
+执行类场景 skill 生成实施计划时，默认以以下材料为输入：
 
 - 已确认的任务分诊结果：目标、非目标、等级、风险、验收标准。
 - 已确认的 Agent 环境方案：允许使用的 Agent、MCP、workflow、验证与审查策略。
 - 已确认的文档初始化方案：文档边界和写入策略。
-- 已确认的实施计划：实施步骤、阶段流程和验证门禁。
 - 相关正式文档：`docs/...`、`releases/...`。
 - 人工参考材料：`references/...` 中的 draft 需求、参考实现或样例材料，只读参考；使用规则见 `orchestration/reference-inputs.md`。
 
+执行阶段还必须以已审批的 `.claude/runs/<date>-<task-slug>/implementation-plan.md` 为实施基线。
+
 ### 通用工作流规则
 
-1. 执行前参考 `orchestration/ecc-capability-map.md` 和已确认的 Agent 环境方案，选择本场景相关 ECC 能力；工作流草案中必须落到具体 `/ecc:*` 指令或 `ecc:<agent>`。
-2. 执行前必须基于 `orchestration/workflow-execution-template.md` 输出场景化工作流执行流程草案，说明每个阶段的 ECC 指令 / Agent、Plan B、写入边界和自动执行边界，供用户审阅。
-3. 执行时以已审批执行基线为准，不重新分诊、不重新初始化环境、不主动改写 `diagnosis.md`、`agent-environment.md`、`document-initialization.md`、`implementation-plan.md`、`docs/...`、`releases/...` 或 `references/...`。
-4. `references/` 只能按 `orchestration/reference-inputs.md` 作为人工只读参考输入；其 draft 需求或参考实现不自动成为验收标准，除非已被审批文档吸收。
-5. 如果 ECC 能力缺失、改名或不适用，按 Plan B 降级，并说明替代方案、能力缺口和风险。
-6. 执行时引用本文件，结束时参考 `orchestration/report-template.md`。
+1. `/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe`、`/migrate-safe` 执行前参考 `orchestration/ecc-capability-map.md` 和已确认的 Agent 环境方案，选择本场景相关 ECC 能力；实施计划中必须落到具体 `/ecc:*` 指令或 `ecc:<agent>`。
+2. `/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe`、`/migrate-safe` 执行前必须基于 `orchestration/workflow-execution-template.md` 生成 `.claude/runs/<date>-<task-slug>/implementation-plan.md`，说明每个阶段的 ECC 指令 / Agent、Plan B、写入边界和自动执行边界，供用户审批。
+3. 用户审批 `implementation-plan.md` 后，对应 skill 才能按该计划进入实施。
+4. 执行时以已审批执行基线为准，不重新分诊、不重新初始化环境、不主动改写 `diagnosis.md`、`agent-environment.md`、`document-initialization.md`、`implementation-plan.md`、`docs/...`、`releases/...` 或 `references/...`。
+5. `references/` 只能按 `orchestration/reference-inputs.md` 作为人工只读参考输入；其 draft 需求或参考实现不自动成为验收标准，除非已被审批文档吸收。
+6. 如果 ECC 能力缺失、改名或不适用，按 Plan B 降级，并说明替代方案、能力缺口和风险。
+7. 执行时引用本文件，结束时参考 `orchestration/report-template.md`。
 
 ### 通用执行前输出
 
-实际执行前，必须按 `orchestration/workflow-execution-template.md` 输出工作流执行流程草案，至少包含：
+实际执行前，`/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe`、`/migrate-safe` 必须按 `orchestration/workflow-execution-template.md` 生成 `.claude/runs/<date>-<task-slug>/implementation-plan.md` 供用户审批，至少包含：
 
 - 执行基线；
 - 场景化执行流程；

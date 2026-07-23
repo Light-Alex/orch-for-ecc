@@ -21,7 +21,7 @@ metadata:
 
 ## 用途
 
-把已确认的任务分诊结果和 Agent 环境方案转成后续执行可读取、可审批、可交接的文档计划。这个 skill 只输出文档初始化草案；用户确认前不进入执行阶段。
+把已确认的任务分诊结果和 Agent 环境方案转成后续执行可读取、可审批、可交接的文档初始化方案。这个 skill 只输出文档初始化草案；用户确认前不进入执行阶段，也不生成实施计划。
 
 ## 输入前提
 
@@ -67,7 +67,7 @@ metadata:
 - `diagnosis.md`：任务分诊结果。
 - `agent-environment.md`：Agent 环境初始化方案。
 - `document-initialization.md`：文档初始化方案。
-- `implementation-plan.md`：实施计划。
+- `implementation-plan.md`：实施计划审批件；不由 `/task-docs` 生成，由 `/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe` 或 `/migrate-safe` 参照 `orchestration/workflow-execution-template.md` 生成。
 - `progress.md`：进度记录。
 - `implementation-notes.md`：Agent 审计日志、关键决策、偏离计划和上下文备注。
 - `delivery-report.md`：交付报告。
@@ -97,7 +97,7 @@ metadata:
 默认生成或更新：
 
 - `.claude/runs/<date>-<task-slug>/diagnosis.md`
-- `.claude/runs/<date>-<task-slug>/implementation-plan.md`
+- `.claude/runs/<date>-<task-slug>/document-initialization.md`
 
 按需补充：
 
@@ -113,7 +113,6 @@ metadata:
 - `.claude/runs/<date>-<task-slug>/diagnosis.md`
 - `.claude/runs/<date>-<task-slug>/agent-environment.md`
 - `.claude/runs/<date>-<task-slug>/document-initialization.md`
-- `.claude/runs/<date>-<task-slug>/implementation-plan.md`
 - `.claude/runs/<date>-<task-slug>/progress.md`
 - `.claude/runs/<date>-<task-slug>/implementation-notes.md`
 - `.claude/runs/<date>-<task-slug>/delivery-report.md`
@@ -159,16 +158,17 @@ metadata:
 2. 文档分类和 S/M/L/XL 文档策略必须使用同一套文档名。
 3. 如果项目已有文档命名和目录规范，优先沿用项目规范；但输出时必须说明与默认文档名的对应关系。
 4. 同一个文档同一阶段只允许一个最终写入/合并方；专家 Agent 可以给建议，但由最终写入/合并方合并。
-5. 不保存 secrets、token、真实用户隐私或生产敏感数据。
-6. 文档是约束源，但不是不可质疑的真理；如果文档与代码、测试或真实系统行为冲突，必须暂停确认。
-7. `.claude/runs/` 默认是过程资产；长期价值内容再晋升到 `docs/`、`rules/`、`skills/` 或 `workflows/`。
-8. `agent_improvement/from_conversation.md` 必须短，只保留稳定偏好、项目特色和反复踩坑；一次性任务细节放 `agent_improvement/conversations/` 摘要。
-9. `agent_improvement/potential-skills/` 是候选区，不自动生效；人工确认后再晋升。
-10. 如果文档初始化发现环境方案不足或冲突，应暂停并回退到 `/agent-env`。
-11. 优先参考 `orchestration/ecc-capability-map.md` 查询文档、codemap 和质量门禁相关能力；输出中必须尽量落到具体 `/ecc:*` 指令或 `ecc:<agent>` 名称，不能只写抽象能力类别。
-12. 如果没有合适的 `/ecc:*` 指令或 `ecc:<agent>`，Plan B 必须说明由谁手写/更新哪些文档，以及缺失能力带来的审计风险。
-13. “执行方式”必须说明具体 `/ecc:*` 指令、`ecc:<agent>`、最终写入/合并方和 Plan B；多个 Agent 参与时，同一文档同一阶段只能有一个最终写入/合并方。
-14. 如果文档计划引用 `references/`，按 `orchestration/reference-inputs.md` 说明引用来源、影响的文档和仍需用户确认的内容；不得把 reference draft 自动晋升为正式 docs、releases 或验收清单。
+5. `/task-docs` 不生成 `.claude/runs/<date>-<task-slug>/implementation-plan.md`；该文件由 `/mvp-build`、`/feature-add`、`/bug-fix`、`/refactor-safe` 或 `/migrate-safe` 在执行前参照 `orchestration/workflow-execution-template.md` 生成，并经用户审批后作为实施基线。
+6. 不保存 secrets、token、真实用户隐私或生产敏感数据。
+7. 文档是约束源，但不是不可质疑的真理；如果文档与代码、测试或真实系统行为冲突，必须暂停确认。
+8. `.claude/runs/` 默认是过程资产；长期价值内容再晋升到 `docs/`、`rules/`、`skills/` 或 `workflows/`。
+9. `agent_improvement/from_conversation.md` 必须短，只保留稳定偏好、项目特色和反复踩坑；一次性任务细节放 `agent_improvement/conversations/` 摘要。
+10. `agent_improvement/potential-skills/` 是候选区，不自动生效；人工确认后再晋升。
+11. 如果文档初始化发现环境方案不足或冲突，应暂停并回退到 `/agent-env`。
+12. 优先参考 `orchestration/ecc-capability-map.md` 查询文档、codemap 和质量门禁相关能力；输出中必须尽量落到具体 `/ecc:*` 指令或 `ecc:<agent>` 名称，不能只写抽象能力类别。
+13. 如果没有合适的 `/ecc:*` 指令或 `ecc:<agent>`，Plan B 必须说明由谁手写/更新哪些文档，以及缺失能力带来的审计风险。
+14. “执行方式”必须说明具体 `/ecc:*` 指令、`ecc:<agent>`、最终写入/合并方和 Plan B；多个 Agent 参与时，同一文档同一阶段只能有一个最终写入/合并方。
+15. 如果文档计划引用 `references/`，按 `orchestration/reference-inputs.md` 说明引用来源、影响的文档和仍需用户确认的内容；不得把 reference draft 自动晋升为正式 docs、releases 或验收清单。
 
 ## 输出格式
 
