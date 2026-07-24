@@ -1,0 +1,30 @@
+{
+  "name": "orch-for-ecc",
+  "version": "0.1.0",
+  "description": "ECC-based Claude Code coding workflow orchestration plugin for triage, planning, execution, verification, and delivery reporting.",
+  "author": {
+    "name": "Lawrence Barnes",
+    "url": "https://x.com/LawrenceBa83698"
+  },
+  "repository": "https://github.com/Light-Alex/orch-for-ecc",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "everything-claude-code",
+    "ecc",
+    "coding-workflow",
+    "task-triage",
+    "planning",
+    "verification",
+    "delivery-report",
+    "orchestration",
+    "skills"
+  ],
+  "mcpServers": {},
+  "skills": [
+    "./skills/"
+  ],
+  "commands": [
+    "./commands/"
+  ]
+}

@@ -1,6 +1,6 @@
 # Orchestration 共享编排资料
 
-本目录保存项目级共享编排资料，不作为 Claude Code skill 触发。
+本目录保存项目级共享编排资料，不作为 Claude Code skill 触发。作为插件安装后，这些文件随插件一起提供，供插件 skills 和 command 引用。
 
 `skills/` 目录只保存用户可显式触发的入口 skill；这些 skill 在执行时按需引用本目录中的规则、ECC 能力映射和 ECC 插件能力基线。可复制、可实例化的输出模板位于项目根目录 `templates/`。
 

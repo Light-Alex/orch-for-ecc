@@ -10,6 +10,7 @@ metadata:
 # ECC 检查更新
 
 > 触发方式：仅当用户输入 `/ecc-check-update` 或明确要求执行本 command 时使用。
+> 作为插件安装后，命令入口为 `/orch-for-ecc:ecc-check-update`。
 > 默认只检查和生成刷新计划；写入项目文件前必须先让用户确认。
 
 ## 用途
@@ -46,7 +47,7 @@ metadata:
 
 ## 只读检查脚本
 
-优先使用命令和脚本收集事实，不手工猜测。
+优先使用命令和脚本收集事实，不手工猜测。脚本以当前工作目录作为目标项目/插件根目录，读取其中的 `orchestration/` 和 `skills/`；如从其他目录触发插件 command，先切换到要检查的项目根目录再运行。
 
 ```bash
 node scripts/ecc-check-update.js
