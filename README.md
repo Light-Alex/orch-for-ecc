@@ -8,7 +8,7 @@
 
 本插件依赖 [Everything Claude Code（ECC）插件](https://github.com/affaan-m/ECC/tree/main#step-1-install-the-plugin-recommended)，需要提前安装好。
 
-> 当前仅支持在 Claude Code 中使用；其他 Agent Harness 暂未适配。
+> 当前仅支持在 Claude Code 中使用，建议安装最新版Claude Code(v2.1.218+)；其他 Agent Harness 暂未适配。
 
 ## 安装
 

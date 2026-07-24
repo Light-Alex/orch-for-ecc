@@ -51,11 +51,22 @@ Output:
   process.exit(0)
 }
 
-const ROOT = process.cwd()
-const BASELINE = path.join(ROOT, 'orchestration', 'ecc-baseline.md')
-const CAPABILITY_MAP = path.join(ROOT, 'orchestration', 'ecc-capability-map.md')
-const SKILLS_DIR = path.join(ROOT, 'skills')
-const REQUIRED_PROJECT_FILES = [BASELINE, CAPABILITY_MAP]
+const ORCH_PLUGIN_ID = 'orch-for-ecc@orch-for-ecc'
+const ECC_PLUGIN_ID = 'ecc@ecc'
+
+let ROOT = null
+let BASELINE = null
+let CAPABILITY_MAP = null
+let SKILLS_DIR = null
+let REQUIRED_PROJECT_FILES = []
+
+function configureBaselineRoot(root) {
+  ROOT = root
+  BASELINE = path.join(ROOT, 'orchestration', 'ecc-baseline.md')
+  CAPABILITY_MAP = path.join(ROOT, 'orchestration', 'ecc-capability-map.md')
+  SKILLS_DIR = path.join(ROOT, 'skills')
+  REQUIRED_PROJECT_FILES = [BASELINE, CAPABILITY_MAP]
+}
 
 function warning(code, message, hint) {
   return hint ? { code, message, hint } : { code, message }
@@ -186,12 +197,16 @@ function runClaude(claudeBin, claudeArgs) {
   }
 }
 
+function displayPath(file) {
+  return ROOT ? path.relative(ROOT, file) : file
+}
+
 function readFile(file, warnings) {
   if (exists(file)) return fs.readFileSync(file, 'utf8')
   if (warnings) {
     warnings.push(warning(
-      'PROJECT_FILE_MISSING',
-      `Missing project file: ${path.relative(ROOT, file)}`
+      'ORCH_BASELINE_FILE_MISSING',
+      `Missing orch-for-ecc baseline file: ${displayPath(file)}`
     ))
   }
   return ''
@@ -200,8 +215,8 @@ function readFile(file, warnings) {
 function listSkillFiles(warnings) {
   if (!exists(SKILLS_DIR)) {
     warnings.push(warning(
-      'SKILLS_DIR_MISSING',
-      `Missing project directory: ${path.relative(ROOT, SKILLS_DIR)}`
+      'ORCH_SKILLS_DIR_MISSING',
+      `Missing orch-for-ecc skills directory: ${displayPath(SKILLS_DIR)}`
     ))
     return []
   }
@@ -288,23 +303,42 @@ function escapeRegExp(value) {
 function parsePluginList(stdout, warnings) {
   try {
     const plugins = JSON.parse(stdout)
-    const plugin = Array.isArray(plugins)
-      ? plugins.find((item) => item && item.id === 'ecc@ecc')
-      : null
-    if (!plugin) {
+    if (!Array.isArray(plugins)) {
       warnings.push(warning(
-        'ECC_PLUGIN_NOT_FOUND',
-        'ecc@ecc was not found in `claude plugin list --json`.'
+        'PLUGIN_LIST_SCHEMA_INVALID',
+        'Expected `claude plugin list --json` output to be an array.'
+      ))
+      return { orchPlugin: null, eccPlugin: null }
+    }
+
+    const orchPlugin = plugins.find((item) => item && item.id === ORCH_PLUGIN_ID) || null
+    const eccPlugin = plugins.find((item) => item && item.id === ECC_PLUGIN_ID) || null
+    if (!orchPlugin) {
+      warnings.push(warning(
+        'ORCH_PLUGIN_NOT_FOUND',
+        `${ORCH_PLUGIN_ID} was not found in \`claude plugin list --json\`.`,
+        `Install or enable ${ORCH_PLUGIN_ID}; the baseline is read from its installPath.`
+      ))
+    } else if (!orchPlugin.installPath) {
+      warnings.push(warning(
+        'ORCH_PLUGIN_INSTALL_PATH_MISSING',
+        `${ORCH_PLUGIN_ID} is missing installPath; cannot locate the orch-for-ecc baseline.`
       ))
     }
-    return plugin || null
+    if (!eccPlugin) {
+      warnings.push(warning(
+        'ECC_PLUGIN_NOT_FOUND',
+        `${ECC_PLUGIN_ID} was not found in \`claude plugin list --json\`.`
+      ))
+    }
+    return { orchPlugin, eccPlugin }
   } catch (error) {
     warnings.push(warning(
       'PLUGIN_LIST_JSON_PARSE_FAILED',
       'Failed to parse `claude plugin list --json` output as JSON.',
       String(error.message || error)
     ))
-    return null
+    return { orchPlugin: null, eccPlugin: null }
   }
 }
 
@@ -369,7 +403,7 @@ function parseProjectMcpTemplates(warnings) {
   return uniqueSorted(names)
 }
 
-function checkListAgainstInstalled(projectItems, installedItems, kind, warnings) {
+function checkListAgainstInstalled(baselineItems, installedItems, kind, warnings) {
   if (!installedItems) {
     warnings.push(warning(
       `${kind}_CHECK_SKIPPED`,
@@ -378,7 +412,7 @@ function checkListAgainstInstalled(projectItems, installedItems, kind, warnings)
     return { status: 'UNKNOWN', missing: [] }
   }
   const installedSet = new Set(installedItems)
-  const missing = projectItems.filter((item) => {
+  const missing = baselineItems.filter((item) => {
     const name = item.startsWith('/ecc:') ? item.slice('/ecc:'.length) : item.replace(/^ecc:/, '')
     return !installedSet.has(name)
   })
@@ -415,33 +449,40 @@ function deriveAnalysisRequired(summary, diffs, includeOpportunities) {
   return uniqueSorted(required)
 }
 
-function deriveNextAction(status, analysisRequired, opportunityCounts) {
+function deriveNextAction(status, analysisRequired, opportunityCounts, warnings = []) {
+  const warningCodes = new Set(warnings.map((item) => item.code))
   const hasOpportunities = opportunityCounts.newSkillCommands || opportunityCounts.newAgents
   if (status === 'OK') {
     if (analysisRequired.includes('newAgents') || analysisRequired.includes('newSkillCommands')) {
-      return 'The current ECC environment is compatible with the project baseline; optional new capabilities are listed for review. Analyze them only if you want to refresh the project capability map.'
+      return 'The current ECC plugin is compatible with the orch-for-ecc baseline; optional new capabilities are listed for review. Analyze them only if you want to refresh the orch-for-ecc capability map.'
     }
     if (hasOpportunities) {
-      return 'The current ECC environment is compatible with the project baseline; optional new capabilities are available. Run with --opportunities to review them.'
+      return 'The current ECC plugin is compatible with the orch-for-ecc baseline; optional new capabilities are available. Run with --opportunities to review them.'
     }
-    return 'The current ECC environment matches the project baseline and capability map; no update is required.'
+    return 'The current ECC plugin matches the orch-for-ecc baseline and capability map; no update is required.'
   }
-  if (status === 'UNKNOWN') return 'The current environment information is incomplete; retry in an environment where the claude CLI is executable, or set CLAUDE_BIN.'
+  if (status === 'UNKNOWN') {
+    if (warningCodes.has('ORCH_PLUGIN_NOT_FOUND') || warningCodes.has('ORCH_PLUGIN_INSTALL_PATH_MISSING')) {
+      return `The ${ORCH_PLUGIN_ID} plugin baseline is unavailable; install or enable ${ORCH_PLUGIN_ID}, then rerun this check.`
+    }
+    if (warningCodes.has('ECC_PLUGIN_NOT_FOUND')) {
+      return `The ${ECC_PLUGIN_ID} plugin is unavailable; install or enable ${ECC_PLUGIN_ID}, then rerun this check.`
+    }
+    return 'The current environment information is incomplete; retry in an environment where the claude CLI is executable, or set CLAUDE_BIN.'
+  }
   if (analysisRequired.includes('newAgents') || analysisRequired.includes('newSkillCommands')) {
-    return 'New ECC capabilities or differences were found; ask Claude to analyze whether existing orchestration content should be replaced or optimized, then wait for user approval.'
+    return 'New ECC capabilities or differences were found; ask Claude to analyze whether orch-for-ecc content should be replaced or optimized, then wait for user approval.'
   }
-  return 'ECC differences affect the project baseline; review the diff and generate an update plan for approval.'
+  return 'ECC differences affect the orch-for-ecc baseline; review the diff and generate an update plan for approval.'
 }
 
 function main() {
   const warnings = []
-  const baselineVersion = parseBaselineVersion(warnings)
-  const { skillCommands: projectSkillCommands, agents: projectAgents } = extractProjectRefs(warnings)
-  const projectMcpTemplates = parseProjectMcpTemplates(warnings)
-
+  const invocationCwd = process.cwd()
   const claudeBin = findClaudeBin(warnings)
 
-  let plugin = null
+  let orchPlugin = null
+  let eccPlugin = null
   const listCmd = runClaude(claudeBin, ['plugin', 'list', '--json'])
   if (listCmd.status !== 0) {
     warnings.push(warning(
@@ -450,38 +491,72 @@ function main() {
       listCmd.stderr || 'No stderr output.'
     ))
   } else {
-    plugin = parsePluginList(listCmd.stdout, warnings)
+    const plugins = parsePluginList(listCmd.stdout, warnings)
+    orchPlugin = plugins.orchPlugin
+    eccPlugin = plugins.eccPlugin
+  }
+
+  let baselineVersion = null
+  let orchSkillCommands = []
+  let orchAgents = []
+  let orchMcpTemplates = []
+  const baselineAvailable = Boolean(orchPlugin && orchPlugin.installPath)
+  if (baselineAvailable) {
+    configureBaselineRoot(orchPlugin.installPath)
+    baselineVersion = parseBaselineVersion(warnings)
+    const refs = extractProjectRefs(warnings)
+    orchSkillCommands = refs.skillCommands
+    orchAgents = refs.agents
+    orchMcpTemplates = parseProjectMcpTemplates(warnings)
+  } else {
+    warnings.push(warning(
+      'ORCH_BASELINE_CHECK_SKIPPED',
+      `Skipped orch-for-ecc baseline checks because ${ORCH_PLUGIN_ID} installPath was not available.`
+    ))
   }
 
   let componentCounts = {}
   let installedSkillCommands = null
   let installedAgents = null
-  const detailsCmd = runClaude(claudeBin, ['plugin', 'details', 'ecc@ecc'])
-  if (detailsCmd.status !== 0) {
-    warnings.push(warning(
-      'PLUGIN_DETAILS_FAILED',
-      'Failed to run `claude plugin details ecc@ecc`.',
-      detailsCmd.stderr || 'No stderr output.'
-    ))
+  if (eccPlugin) {
+    const detailsCmd = runClaude(claudeBin, ['plugin', 'details', ECC_PLUGIN_ID])
+    if (detailsCmd.status !== 0) {
+      warnings.push(warning(
+        'PLUGIN_DETAILS_FAILED',
+        `Failed to run \`claude plugin details ${ECC_PLUGIN_ID}\`.`,
+        detailsCmd.stderr || 'No stderr output.'
+      ))
+    } else {
+      const details = parseDetails(detailsCmd.stdout, warnings)
+      componentCounts = details.counts
+      installedSkillCommands = details.skills
+      installedAgents = details.agents
+    }
   } else {
-    const details = parseDetails(detailsCmd.stdout, warnings)
-    componentCounts = details.counts
-    installedSkillCommands = details.skills
-    installedAgents = details.agents
+    warnings.push(warning(
+      'PLUGIN_DETAILS_SKIPPED',
+      `Skipped \`claude plugin details ${ECC_PLUGIN_ID}\` because ${ECC_PLUGIN_ID} was not found.`
+    ))
   }
 
-  const mcpTemplates = parseMcpTemplateNames(plugin, warnings)
+  const mcpTemplates = eccPlugin ? parseMcpTemplateNames(eccPlugin, warnings) : { source: null, names: [] }
 
-  const skillCommandCheck = checkListAgainstInstalled(projectSkillCommands, installedSkillCommands, 'SKILL_COMMANDS', warnings)
-  const agentCheck = checkListAgainstInstalled(projectAgents, installedAgents, 'AGENTS', warnings)
+  const skillCommandCheck = baselineAvailable
+    ? checkListAgainstInstalled(orchSkillCommands, installedSkillCommands, 'SKILL_COMMANDS', warnings)
+    : { status: 'UNKNOWN', missing: [] }
+  const agentCheck = baselineAvailable
+    ? checkListAgainstInstalled(orchAgents, installedAgents, 'AGENTS', warnings)
+    : { status: 'UNKNOWN', missing: [] }
 
-  const installedVersion = plugin && plugin.version ? plugin.version : null
+  const installedVersion = eccPlugin && eccPlugin.version ? eccPlugin.version : null
   let versionStatus = 'UNKNOWN'
   if (!installedVersion) {
     warnings.push(warning(
       'VERSION_CHECK_SKIPPED',
       'Skipped version diff because installed ECC version was not found.'
     ))
+  } else if (!baselineAvailable) {
+    versionStatus = 'UNKNOWN'
   } else {
     versionStatus = installedVersion === baselineVersion ? 'OK' : 'DIFF'
   }
@@ -489,14 +564,19 @@ function main() {
   let mcpTemplateStatus = 'UNKNOWN'
   let missingMcpTemplatesInMap = []
   let staleMcpTemplatesInMap = []
-  if (!mcpTemplates.source) {
+  if (!baselineAvailable) {
+    warnings.push(warning(
+      'MCP_TEMPLATE_CHECK_SKIPPED',
+      `Skipped MCP template diff because ${ORCH_PLUGIN_ID} baseline was not available.`
+    ))
+  } else if (!mcpTemplates.source) {
     warnings.push(warning(
       'MCP_TEMPLATE_CHECK_SKIPPED',
       'Skipped MCP template diff because ECC MCP template source was not found.'
     ))
   } else {
-    missingMcpTemplatesInMap = mcpTemplates.names.filter((item) => !projectMcpTemplates.includes(item))
-    staleMcpTemplatesInMap = projectMcpTemplates.filter((item) => !mcpTemplates.names.includes(item))
+    missingMcpTemplatesInMap = mcpTemplates.names.filter((item) => !orchMcpTemplates.includes(item))
+    staleMcpTemplatesInMap = orchMcpTemplates.filter((item) => !mcpTemplates.names.includes(item))
     mcpTemplateStatus = missingMcpTemplatesInMap.length || staleMcpTemplatesInMap.length ? 'DIFF' : 'OK'
   }
 
@@ -504,13 +584,13 @@ function main() {
   let newSkillCommands = []
   let newAgents = []
   if (installedSkillCommands && installedAgents) {
-    const projectSkillCommandNames = new Set(projectSkillCommands.map((item) => item.slice('/ecc:'.length)))
-    const projectAgentNames = new Set(projectAgents.map((item) => item.slice('ecc:'.length)))
+    const orchSkillCommandNames = new Set(orchSkillCommands.map((item) => item.slice('/ecc:'.length)))
+    const orchAgentNames = new Set(orchAgents.map((item) => item.slice('ecc:'.length)))
     newSkillCommands = installedSkillCommands
-      .filter((item) => !projectSkillCommandNames.has(item))
+      .filter((item) => !orchSkillCommandNames.has(item))
       .map((item) => `/ecc:${item}`)
     newAgents = installedAgents
-      .filter((item) => !projectAgentNames.has(item))
+      .filter((item) => !orchAgentNames.has(item))
       .map((item) => `ecc:${item}`)
     newCapabilitiesStatus = newSkillCommands.length || newAgents.length ? 'PRESENT' : 'OK'
   } else {
@@ -551,23 +631,26 @@ function main() {
     nextAction: deriveNextAction(status, analysisRequired, {
       newSkillCommands: newSkillCommands.length,
       newAgents: newAgents.length,
-    }),
+    }, warnings),
   }
 
   if (verbose) {
     result.details = {
       claudeBin,
-      plugin,
+      plugin: eccPlugin,
+      orchPlugin,
+      baselineRoot: ROOT,
+      invocationCwd,
       componentCounts,
-      projectSkillCommands,
-      projectAgents,
+      orchSkillCommands,
+      orchAgents,
       installedSkillCommands,
       installedAgents,
       newSkillCommands,
       newAgents,
       mcpTemplateSource: mcpTemplates.source,
       mcpTemplateNames: mcpTemplates.names,
-      projectMcpTemplates,
+      orchMcpTemplates,
     }
   }
 

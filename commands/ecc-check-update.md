@@ -1,6 +1,5 @@
 ---
-name: ecc-check-update
-description: 检查当前环境安装的 ECC 插件是否与项目基线兼容；兼容则报告无需更新，不兼容则列出差异并生成等待审批的 update 计划。
+description: 检查当前安装的 ECC 插件是否与 orch-for-ecc 插件内置基线兼容；兼容则报告无需更新，不兼容则列出差异并生成等待审批的 update 计划。
 metadata:
   language: zh-CN
   scope: project
@@ -15,9 +14,9 @@ metadata:
 
 ## 用途
 
-检查当前环境安装的 ECC 插件信息是否与本项目记录的 ECC 基线一致。
+检查当前环境安装的 `ecc@ecc` 插件信息是否与当前安装的 `orch-for-ecc@orch-for-ecc` 插件内置 ECC 基线一致。
 
-本 command 维护：
+本 command 维护 `orch-for-ecc@orch-for-ecc` 插件内置基线：
 
 - `orchestration/ecc-baseline.md`
 - `orchestration/ecc-capability-map.md`
@@ -28,26 +27,28 @@ metadata:
 1. 查询当前环境 ECC 插件：
    - `claude plugin list --json`
    - `claude plugin details ecc@ecc`
-2. 读取项目基线：
+2. 定位 `orch-for-ecc@orch-for-ecc` 插件安装目录：
+   - 从 `claude plugin list --json` 读取 `orch-for-ecc@orch-for-ecc.installPath`
+3. 读取 orch-for-ecc 内置基线：
    - `orchestration/ecc-baseline.md`
-3. 读取项目能力映射：
+4. 读取 orch-for-ecc 内置能力映射：
    - `orchestration/ecc-capability-map.md`
-4. 按需扫描入口 skill：
+5. 按需扫描 orch-for-ecc 入口 skill：
    - `skills/*/SKILL.md`
-5. 对比：
+6. 对比：
    - ECC 插件版本。
    - `/ecc:*` 指令是否可在当前 ECC skills / commands 中找到对应能力。
    - `ecc:*` Agent 是否可在当前 ECC agents 中找到对应能力。
-   - 当前环境 ECC `mcp-configs/mcp-servers.json` 是否与 `orchestration/ecc-capability-map.md` 中的 MCP 配置模板清单一致。
-6. 输出检查结论：
-   - 如果兼容：报告当前环境 ECC 与项目基线兼容，无需更新。
+   - 当前环境 ECC `mcp-configs/mcp-servers.json` 是否与 orch-for-ecc 内置 `orchestration/ecc-capability-map.md` 中的 MCP 配置模板清单一致.
+7. 输出检查结论：
+   - 如果兼容：报告当前环境 ECC 与 orch-for-ecc 基线兼容，无需更新。
    - 如果不兼容：报告不兼容，列出差异点，并生成 update 计划。
    - 如果仅发现新增能力：作为可选升级机会处理，不默认生成 update 计划。
-7. 等待用户审批：用户批准前不写入项目文件。
+8. 等待用户审批：用户批准前不写入项目文件。
 
 ## 只读检查脚本
 
-优先使用命令和脚本收集事实，不手工猜测。脚本以当前工作目录作为目标项目/插件根目录，读取其中的 `orchestration/` 和 `skills/`；如从其他目录触发插件 command，先切换到要检查的项目根目录再运行。
+优先使用命令和脚本收集事实，不手工猜测。脚本通过 `claude plugin list --json` 定位 `orch-for-ecc@orch-for-ecc.installPath` 作为基线来源，读取该插件安装目录下的 `orchestration/` 和 `skills/`；当前工作目录只表示命令触发位置，不作为基线来源。
 
 ```bash
 node scripts/ecc-check-update.js
@@ -77,22 +78,22 @@ node scripts/ecc-check-update.js --help
 
 | 字段 | 含义 |
 | --- | --- |
-| `status` | 总体状态：`OK` 表示兼容或一致，`DIFF` 表示项目基线受到差异影响，`UNKNOWN` 表示当前环境信息不足。仅发现新增能力时默认仍为 `OK`。 |
-| `summary.baselineVersion` | `orchestration/ecc-baseline.md` 中记录的 ECC 基线版本。 |
+| `status` | 总体状态：`OK` 表示兼容或一致，`DIFF` 表示 orch-for-ecc 基线受到差异影响，`UNKNOWN` 表示当前环境信息不足。仅发现新增能力时默认仍为 `OK`。 |
+| `summary.baselineVersion` | `orch-for-ecc@orch-for-ecc.installPath/orchestration/ecc-baseline.md` 中记录的 ECC 基线版本。 |
 | `summary.installedVersion` | 当前环境安装的 ECC 版本；无法取得时为 `null`。 |
 | `summary.version` | 版本检查状态：`OK` / `DIFF` / `UNKNOWN`。 |
-| `summary.skillCommands` | 项目引用的 `/ecc:*` 指令可用性检查状态。 |
-| `summary.agents` | 项目引用的 `ecc:*` Agent 可用性检查状态。 |
+| `summary.skillCommands` | orch-for-ecc 引用的 `/ecc:*` 指令可用性检查状态。 |
+| `summary.agents` | orch-for-ecc 引用的 `ecc:*` Agent 可用性检查状态。 |
 | `summary.mcpTemplates` | ECC MCP 配置模板清单同步状态。 |
-| `summary.newCapabilities` | 是否发现当前 ECC 中存在但项目能力映射尚未采用的新 `/ecc:*` 指令或 `ecc:*` Agent。 |
-| `diffs.missingSkillCommands` | 项目引用但当前 ECC 未找到的 `/ecc:*` 指令。 |
-| `diffs.missingAgents` | 项目引用但当前 ECC 未找到的 `ecc:*` Agent。 |
-| `diffs.newSkillCommands.count` | 当前 ECC 中存在但项目未采用的新 `/ecc:*` 指令数量；默认模式为 `0`，使用 `--opportunities` 或 `--verbose` 时展示。 |
+| `summary.newCapabilities` | 是否发现当前 ECC 中存在但 orch-for-ecc 能力映射尚未采用的新 `/ecc:*` 指令或 `ecc:*` Agent。 |
+| `diffs.missingSkillCommands` | orch-for-ecc 引用但当前 ECC 未找到的 `/ecc:*` 指令。 |
+| `diffs.missingAgents` | orch-for-ecc 引用但当前 ECC 未找到的 `ecc:*` Agent。 |
+| `diffs.newSkillCommands.count` | 当前 ECC 中存在但 orch-for-ecc 尚未采用的新 `/ecc:*` 指令数量；默认模式为 `0`，使用 `--opportunities` 或 `--verbose` 时展示。 |
 | `diffs.newSkillCommands.sample` | 新 `/ecc:*` 指令样例；完整列表只在 `--verbose` 输出中显示。 |
-| `diffs.newAgents.count` | 当前 ECC 中存在但项目未采用的新 `ecc:*` Agent 数量；默认模式为 `0`，使用 `--opportunities` 或 `--verbose` 时展示。 |
+| `diffs.newAgents.count` | 当前 ECC 中存在但 orch-for-ecc 尚未采用的新 `ecc:*` Agent 数量；默认模式为 `0`，使用 `--opportunities` 或 `--verbose` 时展示。 |
 | `diffs.newAgents.sample` | 新 `ecc:*` Agent 样例；完整列表只在 `--verbose` 输出中显示。 |
-| `diffs.missingMcpTemplatesInMap` | 当前 ECC 模板文件有、项目 MCP 模板参考区缺失的模板。 |
-| `diffs.staleMcpTemplatesInMap` | 项目 MCP 模板参考区有、当前 ECC 模板文件已不存在的模板。 |
+| `diffs.missingMcpTemplatesInMap` | 当前 ECC 模板文件有、orch-for-ecc MCP 模板参考区缺失的模板。 |
+| `diffs.staleMcpTemplatesInMap` | orch-for-ecc MCP 模板参考区有、当前 ECC 模板文件已不存在的模板。 |
 | `analysisRequired` | 需要 Claude 进行语义分析的差异类型，例如 `mcpTemplates`、`version`、`missingSkillCommands`。`newSkillCommands` / `newAgents` 仅在使用 `--opportunities` 或 `--verbose` 时纳入。 |
 | `warnings` | 结构化告警列表，说明环境问题、解析失败或跳过原因。 |
 | `warnings[].code` | 告警代码，例如 `CLAUDE_CLI_NOT_FOUND`、`PLUGIN_LIST_FAILED`。 |
@@ -100,9 +101,9 @@ node scripts/ecc-check-update.js --help
 | `warnings[].hint` | 可选处理建议或底层错误信息。 |
 | `nextAction` | 下一步建议。 |
 
-`--opportunities` 会展示当前 ECC 中存在但项目尚未采用的新 `/ecc:*` 指令和 `ecc:*` Agent，并把它们加入 `analysisRequired`。这些新增能力默认只代表可选升级机会，不影响 `status`。
+`--opportunities` 会展示当前 ECC 中存在但 orch-for-ecc 尚未采用的新 `/ecc:*` 指令和 `ecc:*` Agent，并把它们加入 `analysisRequired`。这些新增能力默认只代表可选升级机会，不影响 `status`。
 
-`--verbose` 会额外输出 `details`，包括完整 plugin 对象、组件数量、项目引用清单、已安装能力清单、MCP 模板来源和完整模板清单。默认输出不展示这些细节，避免噪音和本机路径泄露。
+`--verbose` 会额外输出 `details`，包括完整 plugin 对象、组件数量、orch-for-ecc 引用清单、已安装能力清单、MCP 模板来源和完整模板清单。默认输出不展示这些细节，避免噪音和本机路径泄露。
 
 ## Claude CLI 查找
 
@@ -151,7 +152,7 @@ node scripts/ecc-check-update.js
 | `replace-candidate` | 可能替换现有推荐能力。 | 生成待审批替换建议。 |
 | `enhancement-candidate` | 可增强某阶段，但不完全替代旧能力。 | 建议加入可选能力或 Plan B。 |
 | `observe-only` | 可能有用但语义或稳定性不足。 | 暂不写入主流程，只记录观察。 |
-| `not-relevant` | 与本项目编排场景无关或副作用过大。 | 不采用。 |
+| `not-relevant` | 与 orch-for-ecc 编排场景无关或副作用过大。 | 不采用。 |
 
 ## 检查报告模板
 
@@ -162,7 +163,7 @@ node scripts/ecc-check-update.js
 
 ## 结论
 
-当前环境 ECC 与项目基线一致，无需更新。
+当前环境 ECC 与 orch-for-ecc 基线一致，无需更新。
 
 ## 当前环境
 
@@ -190,7 +191,7 @@ node scripts/ecc-check-update.js
 
 ## 结论
 
-当前环境 ECC 与项目基线兼容，无需立即更新。
+当前环境 ECC 与 orch-for-ecc 基线兼容，无需立即更新。
 
 ## 当前环境
 
@@ -208,7 +209,7 @@ node scripts/ecc-check-update.js
 
 ## 下一步
 
-无需操作。如需维护项目能力映射，可运行 `node scripts/ecc-check-update.js --opportunities` 后再做升级机会分析。
+无需操作。如需维护 orch-for-ecc 能力映射，可运行 `node scripts/ecc-check-update.js --opportunities` 后再做升级机会分析。
 ```
 
 ### 不兼容时
@@ -218,7 +219,7 @@ node scripts/ecc-check-update.js
 
 ## 结论
 
-当前环境 ECC 与项目基线不兼容，需要审批后更新。
+当前环境 ECC 与 orch-for-ecc 基线不兼容，需要审批后更新。
 
 ## 当前环境
 
@@ -229,11 +230,11 @@ node scripts/ecc-check-update.js
 
 ## 差异点
 
-| 类型 | 基线 / 项目引用 | 当前环境 | 影响 |
+| 类型 | 基线 / orch-for-ecc 引用 | 当前环境 | 影响 |
 | --- | --- | --- | --- |
 | 版本 | `<baseline-version>` | `<installed-version>` | 需要刷新基线 |
-| `/ecc:*` 指令 | `<project-command>` | 缺失 / 改名候选 | 需要确认替代能力 |
-| `ecc:*` Agent | `<project-agent>` | 缺失 / 改名候选 | 需要确认替代 Agent |
+| `/ecc:*` 指令 | `<orch-command>` | 缺失 / 改名候选 | 需要确认替代能力 |
+| `ecc:*` Agent | `<orch-agent>` | 缺失 / 改名候选 | 需要确认替代 Agent |
 | MCP 配置模板清单 | `ecc-capability-map.md` 中记录的模板 | `mcp-configs/mcp-servers.json` | 需要刷新 MCP 模板参考区 |
 | 关注组件 | `<baseline-summary>` | `<current-summary>` | 仅作信息参考 |
 
@@ -280,7 +281,7 @@ node scripts/ecc-check-update.js
 
 1. 以当前环境安装的 ECC 插件为事实来源。
 2. 先输出差异点、升级机会分析和 update 计划，不直接写入。
-3. 不自动删除项目能力映射中的能力；缺失能力可能是解析缺口、插件未启用、命令改名或当前环境异常。
+3. 不自动删除 orch-for-ecc 能力映射中的能力；缺失能力可能是解析缺口、插件未启用、命令改名或当前环境异常。
 4. 不自动把 ECC 新增的所有 `/ecc:*` 指令或 `ecc:*` Agent 加入项目映射；新增能力默认只作为可选升级机会，必须先按场景匹配、替换价值、增强价值、副作用和稳定性分析。
 5. 只有确认更适合当前入口 skill 的新增能力，才生成待审批替换或增强建议。
 6. MCP 配置模板清单以当前环境 `mcp-configs/mcp-servers.json` 为准；若不一致，只刷新 `ecc-capability-map.md` 中的模板参考区。

@@ -13,9 +13,9 @@
 ## 维护原则
 
 1. 本目录文件是共享参考资料，不是可调用 skill。
-2. ECC 插件升级后，优先使用 `commands/ecc-check-update.md` 检查当前环境与 `ecc-baseline.md` 是否一致，再检查 `ecc-capability-map.md` 和各入口 skill 的引用。
+2. ECC 插件升级后，优先使用 `commands/ecc-check-update.md` 检查当前安装的 `ecc@ecc` 是否与 `orch-for-ecc@orch-for-ecc` 插件内置 `ecc-baseline.md` 一致，再检查 `ecc-capability-map.md` 和各入口 skill 的引用。
 3. 如果某个共享规则变成稳定、可独立触发的能力，再考虑迁移为 `skills/<name>/SKILL.md`。
 
 ## 相关维护 command
 
-- `commands/ecc-check-update.md`：检查当前环境安装的 ECC 插件版本是否与项目基线一致，并在不一致时生成刷新计划。
+- `commands/ecc-check-update.md`：检查当前安装的 `ecc@ecc` 插件是否与 `orch-for-ecc@orch-for-ecc` 插件内置基线一致，并在不一致时生成刷新计划。
