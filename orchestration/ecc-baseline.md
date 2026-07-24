@@ -11,7 +11,7 @@ recorded: 2026-07-21
 
 ## 用途
 
-本文件只记录当前项目适配的 ECC 插件版本基线。
+本文件只记录 `orch-for-ecc@orch-for-ecc` 插件适配的 ECC 插件版本基线。
 
 项目使用的 `/ecc:*` 指令、`ecc:*` Agent 和 ECC MCP 配置模板参考，统一维护在：
 
@@ -38,9 +38,9 @@ orchestration/ecc-capability-map.md
 
 1. 当前环境安装的 ECC 插件是刷新基线时的事实来源。
 2. 如果当前环境 ECC 版本与本文件不一致，先输出差异和 update 计划。
-3. 用户确认前不写入项目文件。
+3. 用户确认前不写入 orch-for-ecc 插件配套文件。
 4. 本文件不保存 ECC 全量 skills、agents、MCP 模板或组件清单。
-5. 本项目 skill 应保持自足，不依赖 ECC 插件内部文档才能理解任务流程。
+5. orch-for-ecc skill 应保持自足，不依赖 ECC 插件内部文档才能理解任务流程。
 
 ## 不记录的内容
 
@@ -59,10 +59,11 @@ orchestration/ecc-capability-map.md
 
 ## 刷新方式
 
-使用项目维护 command：
+使用项目维护 command；源码仓库维护场景应显式使用 `--source-root <path>`，避免把调用目录误当作基线目录：
 
 ```text
 commands/ecc-check-update.md
+node scripts/ecc-check-update.js --source-root .
 ```
 
-刷新时应先查询当前环境，再对比本文件和 `orchestration/ecc-capability-map.md`。不一致时先输出差异和刷新计划，用户确认后再写入项目文件。
+刷新时应先查询当前环境，再对比默认模式下 `orch-for-ecc@orch-for-ecc.installPath` 或源码开发模式下 `--source-root <path>` 中的本文件和 `orchestration/ecc-capability-map.md`。不一致时先输出差异和刷新计划，用户确认后再写入 orch-for-ecc 插件配套文件。

@@ -10,7 +10,7 @@ metadata:
 
 > 触发方式：仅当用户输入 `/ecc-check-update` 或明确要求执行本 command 时使用。
 > 作为插件安装后，命令入口为 `/orch-for-ecc:ecc-check-update`。
-> 默认只检查和生成刷新计划；写入项目文件前必须先让用户确认。
+> 默认只检查和生成刷新计划；写入 orch-for-ecc 插件配套文件前必须先让用户确认。
 
 ## 用途
 
@@ -44,32 +44,45 @@ metadata:
    - 如果兼容：报告当前环境 ECC 与 orch-for-ecc 基线兼容，无需更新。
    - 如果不兼容：报告不兼容，列出差异点，并生成 update 计划。
    - 如果仅发现新增能力：作为可选升级机会处理，不默认生成 update 计划。
-8. 等待用户审批：用户批准前不写入项目文件。
+8. 等待用户审批：用户批准前不写入 orch-for-ecc 插件配套文件。
 
 ## 只读检查脚本
 
-优先使用命令和脚本收集事实，不手工猜测。脚本通过 `claude plugin list --json` 定位 `orch-for-ecc@orch-for-ecc.installPath` 作为基线来源，读取该插件安装目录下的 `orchestration/` 和 `skills/`；当前工作目录只表示命令触发位置，不作为基线来源。
+优先使用命令和脚本收集事实，不手工猜测。默认模式下，脚本通过 `claude plugin list --json` 定位 `orch-for-ecc@orch-for-ecc.installPath` 作为基线来源，读取该插件安装目录下的 `orchestration/` 和 `skills/`；当前工作目录只表示命令触发位置，不作为基线来源。
+
+orch-for-ecc 项目开发者如需检查并准备更新当前源码仓库，必须显式使用 `--source-root <path>`。不要隐式依赖当前工作目录作为源码根目录。
+
+默认插件模式不要从当前工作目录运行 `node scripts/ecc-check-update.js`。作为插件 command 执行时，必须先定位 `orch-for-ecc@orch-for-ecc.installPath`，再使用该安装目录下的脚本绝对路径运行；源码开发模式必须显式传入 `--source-root`。
 
 ```bash
-node scripts/ecc-check-update.js
+ORCH_FOR_ECC_ROOT="$(node -e "const plugins=JSON.parse(require('child_process').execFileSync('claude',['plugin','list','--json'],{encoding:'utf8'})); const plugin=plugins.find((item)=>item.id==='orch-for-ecc@orch-for-ecc'); if(!plugin?.installPath) process.exit(1); process.stdout.write(plugin.installPath)")"
+node "$ORCH_FOR_ECC_ROOT/scripts/ecc-check-update.js"
+```
+
+源码开发模式用于维护本仓库内容：
+
+```bash
+node scripts/ecc-check-update.js --source-root .
 ```
 
 如需主动查看当前 ECC 中存在但项目尚未采用的新能力，可使用：
 
 ```bash
-node scripts/ecc-check-update.js --opportunities
+node "$ORCH_FOR_ECC_ROOT/scripts/ecc-check-update.js" --opportunities
+# 或源码开发模式：node scripts/ecc-check-update.js --source-root . --opportunities
 ```
 
 如需排查脚本解析细节，可使用：
 
 ```bash
-node scripts/ecc-check-update.js --verbose
+node "$ORCH_FOR_ECC_ROOT/scripts/ecc-check-update.js" --verbose
+# 或源码开发模式：node scripts/ecc-check-update.js --source-root . --verbose
 ```
 
 查看脚本用法和 Claude CLI 查找规则：
 
 ```bash
-node scripts/ecc-check-update.js --help
+node "$ORCH_FOR_ECC_ROOT/scripts/ecc-check-update.js" --help
 ```
 
 ## 脚本输出字段
@@ -79,7 +92,7 @@ node scripts/ecc-check-update.js --help
 | 字段 | 含义 |
 | --- | --- |
 | `status` | 总体状态：`OK` 表示兼容或一致，`DIFF` 表示 orch-for-ecc 基线受到差异影响，`UNKNOWN` 表示当前环境信息不足。仅发现新增能力时默认仍为 `OK`。 |
-| `summary.baselineVersion` | `orch-for-ecc@orch-for-ecc.installPath/orchestration/ecc-baseline.md` 中记录的 ECC 基线版本。 |
+| `summary.baselineVersion` | 默认来自 `orch-for-ecc@orch-for-ecc.installPath/orchestration/ecc-baseline.md`；源码开发模式来自 `--source-root <path>/orchestration/ecc-baseline.md`。 |
 | `summary.installedVersion` | 当前环境安装的 ECC 版本；无法取得时为 `null`。 |
 | `summary.version` | 版本检查状态：`OK` / `DIFF` / `UNKNOWN`。 |
 | `summary.skillCommands` | orch-for-ecc 引用的 `/ecc:*` 指令可用性检查状态。 |
@@ -122,19 +135,20 @@ claude plugin list --json
 也可以显式指定 Claude CLI：
 
 ```bash
-CLAUDE_BIN="/path/to/claude" node scripts/ecc-check-update.js
+CLAUDE_BIN="/path/to/claude" node "$ORCH_FOR_ECC_ROOT/scripts/ecc-check-update.js"
 ```
 
 Windows PowerShell 示例：
 
 ```powershell
 $env:CLAUDE_BIN="C:\Users\<user>\AppData\Roaming\npm\claude.cmd"
-node scripts/ecc-check-update.js
+$orchForEccRoot = node -e "const plugins=JSON.parse(require('child_process').execFileSync(process.env.CLAUDE_BIN,['plugin','list','--json'],{encoding:'utf8'})); const plugin=plugins.find((item)=>item.id==='orch-for-ecc@orch-for-ecc'); if(!plugin?.installPath) process.exit(1); process.stdout.write(plugin.installPath)"
+node "$orchForEccRoot/scripts/ecc-check-update.js"
 ```
 
 ## 升级机会分析
 
-当脚本发现 `summary.newCapabilities: PRESENT`，或 `analysisRequired` 包含 `newSkillCommands` / `newAgents` 时，不要直接把所有新增能力写入项目映射。应由 Claude 基于当前入口 skill 的职责做语义分析：
+当脚本发现 `summary.newCapabilities: PRESENT`，或 `analysisRequired` 包含 `newSkillCommands` / `newAgents` 时，不要直接把所有新增能力写入 orch-for-ecc 能力映射。应由 Claude 基于当前入口 skill 的职责做语义分析：
 
 | 维度 | 需要判断的问题 |
 | --- | --- |
@@ -209,7 +223,7 @@ node scripts/ecc-check-update.js
 
 ## 下一步
 
-无需操作。如需维护 orch-for-ecc 能力映射，可运行 `node scripts/ecc-check-update.js --opportunities` 后再做升级机会分析。
+无需操作。如需维护 orch-for-ecc 能力映射，可使用已定位的 `orch-for-ecc@orch-for-ecc.installPath` 运行 `scripts/ecc-check-update.js --opportunities`；源码开发模式可运行 `node scripts/ecc-check-update.js --source-root . --opportunities` 后再做升级机会分析。
 ```
 
 ### 不兼容时
@@ -261,14 +275,14 @@ node scripts/ecc-check-update.js
 
 ## 等待审批
 
-请确认是否按以上 update 计划刷新项目配套内容。用户审批前不写入项目文件。
+请确认是否按以上 update 计划刷新 orch-for-ecc 插件配套内容。用户审批前不写入 orch-for-ecc 插件配套文件。
 ```
 
 ## MCP 配置模板检查边界
 
 本 command 会检查 ECC 插件目录中的 `mcp-configs/mcp-servers.json` 与 `orchestration/ecc-capability-map.md` 中 “MCP 配置模板参考” 的模板清单是否一致。
 
-该检查只用于维护项目文档中的模板参考区，不代表当前环境已经启用这些 MCP。
+该检查只用于维护 orch-for-ecc 文档中的模板参考区，不代表当前环境已经启用这些 MCP。
 
 本 command 不会：
 
@@ -282,16 +296,16 @@ node scripts/ecc-check-update.js
 1. 以当前环境安装的 ECC 插件为事实来源。
 2. 先输出差异点、升级机会分析和 update 计划，不直接写入。
 3. 不自动删除 orch-for-ecc 能力映射中的能力；缺失能力可能是解析缺口、插件未启用、命令改名或当前环境异常。
-4. 不自动把 ECC 新增的所有 `/ecc:*` 指令或 `ecc:*` Agent 加入项目映射；新增能力默认只作为可选升级机会，必须先按场景匹配、替换价值、增强价值、副作用和稳定性分析。
+4. 不自动把 ECC 新增的所有 `/ecc:*` 指令或 `ecc:*` Agent 加入 orch-for-ecc 能力映射；新增能力默认只作为可选升级机会，必须先按场景匹配、替换价值、增强价值、副作用和稳定性分析。
 5. 只有确认更适合当前入口 skill 的新增能力，才生成待审批替换或增强建议。
 6. MCP 配置模板清单以当前环境 `mcp-configs/mcp-servers.json` 为准；若不一致，只刷新 `ecc-capability-map.md` 中的模板参考区。
 7. 对疑似改名的能力，只输出候选替代，不自动替换。
-8. 用户审批前不写入项目文件。
+8. 用户审批前不写入 orch-for-ecc 插件配套文件。
 9. 写入前必须确认影响文件和具体改动。
 
 ## 用户审批后的可写入范围
 
-用户确认后，允许按确认范围更新：
+用户确认后，允许按确认范围更新 orch-for-ecc 插件配套文件：
 
 - `orchestration/ecc-baseline.md`
 - `orchestration/ecc-capability-map.md`

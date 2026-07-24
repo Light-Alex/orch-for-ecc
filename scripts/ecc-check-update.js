@@ -26,14 +26,31 @@ const os = require('os')
 const path = require('path')
 const { spawnSync } = require('child_process')
 
-const args = new Set(process.argv.slice(2))
+const rawArgs = process.argv.slice(2)
+const args = new Set(rawArgs)
 const verbose = args.has('--verbose')
 const opportunities = args.has('--opportunities') || verbose
 const help = args.has('--help') || args.has('-h')
 
+function readOptionValue(name) {
+  const index = rawArgs.indexOf(name)
+  if (index === -1) return null
+  const value = rawArgs[index + 1]
+  return value && !value.startsWith('--') ? value : null
+}
+
+const sourceRootRequested = args.has('--source-root')
+const sourceRootArg = readOptionValue('--source-root')
+
 if (help) {
   console.log(`Usage:
-  node scripts/ecc-check-update.js [--opportunities] [--verbose]
+  node <orch-for-ecc installPath>/scripts/ecc-check-update.js [--opportunities] [--verbose]
+  node scripts/ecc-check-update.js --source-root <orch-for-ecc source root> [--opportunities] [--verbose]
+
+Notes:
+  Default mode reads the orch-for-ecc baseline from orch-for-ecc@orch-for-ecc.installPath.
+  Developer mode reads the baseline from --source-root after validating .claude-plugin/plugin.json.
+  process.cwd() is only recorded as the invocation directory; it is not the baseline root.
 
 Environment:
   CLAUDE_BIN  Optional path to Claude CLI. Useful when claude is not on PATH.
@@ -66,6 +83,35 @@ function configureBaselineRoot(root) {
   CAPABILITY_MAP = path.join(ROOT, 'orchestration', 'ecc-capability-map.md')
   SKILLS_DIR = path.join(ROOT, 'skills')
   REQUIRED_PROJECT_FILES = [BASELINE, CAPABILITY_MAP]
+}
+
+function validateSourceRoot(root, warnings) {
+  const pluginFile = path.join(root, '.claude-plugin', 'plugin.json')
+  if (!exists(pluginFile)) {
+    warnings.push(warning(
+      'SOURCE_ROOT_INVALID',
+      `--source-root does not contain .claude-plugin/plugin.json: ${root}`
+    ))
+    return false
+  }
+  try {
+    const plugin = JSON.parse(fs.readFileSync(pluginFile, 'utf8'))
+    if (plugin.name !== 'orch-for-ecc') {
+      warnings.push(warning(
+        'SOURCE_ROOT_INVALID',
+        `--source-root .claude-plugin/plugin.json has unexpected name: ${plugin.name || '<missing>'}`
+      ))
+      return false
+    }
+  } catch (error) {
+    warnings.push(warning(
+      'SOURCE_ROOT_INVALID',
+      'Failed to parse --source-root .claude-plugin/plugin.json.',
+      String(error.message || error)
+    ))
+    return false
+  }
+  return true
 }
 
 function warning(code, message, hint) {
@@ -300,7 +346,7 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function parsePluginList(stdout, warnings) {
+function parsePluginList(stdout, warnings, requireOrchPlugin = true) {
   try {
     const plugins = JSON.parse(stdout)
     if (!Array.isArray(plugins)) {
@@ -313,13 +359,13 @@ function parsePluginList(stdout, warnings) {
 
     const orchPlugin = plugins.find((item) => item && item.id === ORCH_PLUGIN_ID) || null
     const eccPlugin = plugins.find((item) => item && item.id === ECC_PLUGIN_ID) || null
-    if (!orchPlugin) {
+    if (requireOrchPlugin && !orchPlugin) {
       warnings.push(warning(
         'ORCH_PLUGIN_NOT_FOUND',
         `${ORCH_PLUGIN_ID} was not found in \`claude plugin list --json\`.`,
         `Install or enable ${ORCH_PLUGIN_ID}; the baseline is read from its installPath.`
       ))
-    } else if (!orchPlugin.installPath) {
+    } else if (orchPlugin && !orchPlugin.installPath) {
       warnings.push(warning(
         'ORCH_PLUGIN_INSTALL_PATH_MISSING',
         `${ORCH_PLUGIN_ID} is missing installPath; cannot locate the orch-for-ecc baseline.`
@@ -462,6 +508,9 @@ function deriveNextAction(status, analysisRequired, opportunityCounts, warnings 
     return 'The current ECC plugin matches the orch-for-ecc baseline and capability map; no update is required.'
   }
   if (status === 'UNKNOWN') {
+    if (warningCodes.has('SOURCE_ROOT_INVALID')) {
+      return 'The --source-root path is invalid; point it to the orch-for-ecc source repository root, then rerun this check.'
+    }
     if (warningCodes.has('ORCH_PLUGIN_NOT_FOUND') || warningCodes.has('ORCH_PLUGIN_INSTALL_PATH_MISSING')) {
       return `The ${ORCH_PLUGIN_ID} plugin baseline is unavailable; install or enable ${ORCH_PLUGIN_ID}, then rerun this check.`
     }
@@ -478,6 +527,12 @@ function deriveNextAction(status, analysisRequired, opportunityCounts, warnings 
 
 function main() {
   const warnings = []
+  if (sourceRootRequested && !sourceRootArg) {
+    warnings.push(warning(
+      'SOURCE_ROOT_INVALID',
+      '--source-root requires a path value.'
+    ))
+  }
   const invocationCwd = process.cwd()
   const claudeBin = findClaudeBin(warnings)
 
@@ -491,7 +546,7 @@ function main() {
       listCmd.stderr || 'No stderr output.'
     ))
   } else {
-    const plugins = parsePluginList(listCmd.stdout, warnings)
+    const plugins = parsePluginList(listCmd.stdout, warnings, !sourceRootRequested)
     orchPlugin = plugins.orchPlugin
     eccPlugin = plugins.eccPlugin
   }
@@ -500,9 +555,17 @@ function main() {
   let orchSkillCommands = []
   let orchAgents = []
   let orchMcpTemplates = []
-  const baselineAvailable = Boolean(orchPlugin && orchPlugin.installPath)
-  if (baselineAvailable) {
+  const sourceRoot = sourceRootArg ? path.resolve(sourceRootArg) : null
+  const sourceRootAvailable = Boolean(sourceRoot && validateSourceRoot(sourceRoot, warnings))
+  const installedBaselineAvailable = Boolean(orchPlugin && orchPlugin.installPath)
+  const baselineAvailable = sourceRootAvailable || installedBaselineAvailable
+  if (sourceRootAvailable) {
+    configureBaselineRoot(sourceRoot)
+  } else if (installedBaselineAvailable) {
     configureBaselineRoot(orchPlugin.installPath)
+  }
+
+  if (baselineAvailable) {
     baselineVersion = parseBaselineVersion(warnings)
     const refs = extractProjectRefs(warnings)
     orchSkillCommands = refs.skillCommands
@@ -511,7 +574,7 @@ function main() {
   } else {
     warnings.push(warning(
       'ORCH_BASELINE_CHECK_SKIPPED',
-      `Skipped orch-for-ecc baseline checks because ${ORCH_PLUGIN_ID} installPath was not available.`
+      `Skipped orch-for-ecc baseline checks because neither --source-root nor ${ORCH_PLUGIN_ID} installPath was available.`
     ))
   }
 
@@ -567,7 +630,7 @@ function main() {
   if (!baselineAvailable) {
     warnings.push(warning(
       'MCP_TEMPLATE_CHECK_SKIPPED',
-      `Skipped MCP template diff because ${ORCH_PLUGIN_ID} baseline was not available.`
+      'Skipped MCP template diff because the orch-for-ecc baseline root was not available.'
     ))
   } else if (!mcpTemplates.source) {
     warnings.push(warning(
@@ -640,6 +703,8 @@ function main() {
       plugin: eccPlugin,
       orchPlugin,
       baselineRoot: ROOT,
+      baselineSource: sourceRootAvailable ? 'source-root' : 'installed-plugin',
+      sourceRoot,
       invocationCwd,
       componentCounts,
       orchSkillCommands,
