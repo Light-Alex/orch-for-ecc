@@ -2,7 +2,7 @@
 
 ## 介绍
 
-一个基于 Everything Claude Code（ECC）的 Claude Code 编码流程编排插件，用于将编码任务分解为分诊、环境初始化、文档准备、场景执行、验证和交付报告等步骤，使过程更规范、透明、易于审计。
+一个基于 Everything Claude Code（ECC）的 Claude Code 编码流程编排插件，用于将编码任务分解为分诊、环境初始化、文档准备、场景执行、验证和交付报告等步骤，使过程更规范、透明、易于审计、可控。
 
 ## 依赖说明
 
@@ -36,6 +36,8 @@
 | `/orch-for-ecc:ecc-check-update` | 检查更新orch-for-ecc插件 |
 
 ## 流程说明
+
+> 如果有需要Agent参考的文档（例如draft版的需求，以及一些参考实现等等），可以提前放入项目根目录的`references`目录中。
 
 ```mermaid
 flowchart TD

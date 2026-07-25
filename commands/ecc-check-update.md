@@ -24,39 +24,50 @@ metadata:
 
 ## 执行流程
 
-1. 查询当前环境 ECC 插件：
+1. 选择运行模式：
+   - 如果当前工作目录是 orch-for-ecc 源码仓库（存在 `.claude-plugin/plugin.json` 且 `name` 为 `orch-for-ecc`），直接使用源码开发模式：`node scripts/ecc-check-update.js --source-root .`。
+   - 否则使用默认插件模式，通过已安装 `orch-for-ecc@orch-for-ecc` 插件目录下的 `scripts/ecc-check-update.js` 启动检查。
+2. 查询当前环境 ECC 插件（由脚本按 Claude CLI 查找规则执行，不在 command 外层直接调用裸 `claude`）：
    - `claude plugin list --json`
    - `claude plugin details ecc@ecc`
-2. 定位 `orch-for-ecc@orch-for-ecc` 插件安装目录：
-   - 从 `claude plugin list --json` 读取 `orch-for-ecc@orch-for-ecc.installPath`
-3. 读取 orch-for-ecc 内置基线：
+3. 定位 `orch-for-ecc@orch-for-ecc` 插件安装目录：
+   - 默认插件模式由 `scripts/ecc-check-update.js` 按 `CLAUDE_BIN` / `PATH` / 常见安装路径查找 Claude CLI，再从 `claude plugin list --json` 读取 `orch-for-ecc@orch-for-ecc.installPath`
+   - 源码开发模式必须显式传入 `--source-root <path>`
+4. 读取 orch-for-ecc 内置基线：
    - `orchestration/ecc-baseline.md`
-4. 读取 orch-for-ecc 内置能力映射：
+5. 读取 orch-for-ecc 内置能力映射：
    - `orchestration/ecc-capability-map.md`
-5. 按需扫描 orch-for-ecc 入口 skill：
+6. 按需扫描 orch-for-ecc 入口 skill：
    - `skills/*/SKILL.md`
-6. 对比：
+7. 对比：
    - ECC 插件版本。
    - `/ecc:*` 指令是否可在当前 ECC skills / commands 中找到对应能力。
    - `ecc:*` Agent 是否可在当前 ECC agents 中找到对应能力。
    - 当前环境 ECC `mcp-configs/mcp-servers.json` 是否与 orch-for-ecc 内置 `orchestration/ecc-capability-map.md` 中的 MCP 配置模板清单一致.
-7. 输出检查结论：
+8. 输出检查结论：
    - 如果兼容：报告当前环境 ECC 与 orch-for-ecc 基线兼容，无需更新。
    - 如果不兼容：报告不兼容，列出差异点，并生成 update 计划。
    - 如果仅发现新增能力：作为可选升级机会处理，不默认生成 update 计划。
-8. 等待用户审批：用户批准前不写入 orch-for-ecc 插件配套文件。
+9. 等待用户审批：用户批准前不写入 orch-for-ecc 插件配套文件。
 
 ## 只读检查脚本
 
-优先使用命令和脚本收集事实，不手工猜测。默认模式下，脚本通过 `claude plugin list --json` 定位 `orch-for-ecc@orch-for-ecc.installPath` 作为基线来源，读取该插件安装目录下的 `orchestration/` 和 `skills/`；当前工作目录只表示命令触发位置，不作为基线来源。
+优先使用命令和脚本收集事实，不手工猜测。默认模式下，`scripts/ecc-check-update.js` 先按内置规则查找 Claude CLI，再通过 `claude plugin list --json` 定位 `orch-for-ecc@orch-for-ecc.installPath` 作为基线来源，读取该插件安装目录下的 `orchestration/` 和 `skills/`；当前工作目录只表示命令触发位置，不作为基线来源。
 
 orch-for-ecc 项目开发者如需检查并准备更新当前源码仓库，必须显式使用 `--source-root <path>`。不要隐式依赖当前工作目录作为源码根目录。
 
-默认插件模式不要从当前工作目录运行 `node scripts/ecc-check-update.js`。作为插件 command 执行时，必须先定位 `orch-for-ecc@orch-for-ecc.installPath`，再使用该安装目录下的脚本绝对路径运行；源码开发模式必须显式传入 `--source-root`。
+默认插件模式不要从当前工作目录运行 `node scripts/ecc-check-update.js`。作为插件 command 执行时，优先使用已安装 `orch-for-ecc@orch-for-ecc` 插件目录下的 `scripts/ecc-check-update.js`；该脚本会自行查找 Claude CLI、解析 `orch-for-ecc@orch-for-ecc.installPath`，再读取安装目录下的基线文件。源码开发模式必须显式传入 `--source-root`。
+
+不要在 command 外层使用 `execFileSync('claude', ...)` 或硬编码/猜测 Claude 插件缓存路径来 bootstrap；如果脚本无法定位 Claude CLI 或插件安装目录，应输出 `UNKNOWN` 报告并提示设置 `CLAUDE_BIN` 或启用源码开发模式。
 
 ```bash
-ORCH_FOR_ECC_ROOT="$(node -e "const plugins=JSON.parse(require('child_process').execFileSync('claude',['plugin','list','--json'],{encoding:'utf8'})); const plugin=plugins.find((item)=>item.id==='orch-for-ecc@orch-for-ecc'); if(!plugin?.installPath) process.exit(1); process.stdout.write(plugin.installPath)")"
-node "$ORCH_FOR_ECC_ROOT/scripts/ecc-check-update.js"
+node "<orch-for-ecc installPath>/scripts/ecc-check-update.js"
+```
+
+如果当前 shell 中 `claude` 不在 `PATH`，但已知 Claude CLI 位置，可以显式传入：
+
+```bash
+CLAUDE_BIN="/path/to/claude" node "<orch-for-ecc installPath>/scripts/ecc-check-update.js"
 ```
 
 源码开发模式用于维护本仓库内容：
@@ -68,21 +79,21 @@ node scripts/ecc-check-update.js --source-root .
 如需主动查看当前 ECC 中存在但项目尚未采用的新能力，可使用：
 
 ```bash
-node "$ORCH_FOR_ECC_ROOT/scripts/ecc-check-update.js" --opportunities
+node "<orch-for-ecc installPath>/scripts/ecc-check-update.js" --opportunities
 # 或源码开发模式：node scripts/ecc-check-update.js --source-root . --opportunities
 ```
 
 如需排查脚本解析细节，可使用：
 
 ```bash
-node "$ORCH_FOR_ECC_ROOT/scripts/ecc-check-update.js" --verbose
+node "<orch-for-ecc installPath>/scripts/ecc-check-update.js" --verbose
 # 或源码开发模式：node scripts/ecc-check-update.js --source-root . --verbose
 ```
 
 查看脚本用法和 Claude CLI 查找规则：
 
 ```bash
-node "$ORCH_FOR_ECC_ROOT/scripts/ecc-check-update.js" --help
+node "<orch-for-ecc installPath>/scripts/ecc-check-update.js" --help
 ```
 
 ## 脚本输出字段
@@ -135,15 +146,14 @@ claude plugin list --json
 也可以显式指定 Claude CLI：
 
 ```bash
-CLAUDE_BIN="/path/to/claude" node "$ORCH_FOR_ECC_ROOT/scripts/ecc-check-update.js"
+CLAUDE_BIN="/path/to/claude" node "<orch-for-ecc installPath>/scripts/ecc-check-update.js"
 ```
 
 Windows PowerShell 示例：
 
 ```powershell
 $env:CLAUDE_BIN="C:\Users\<user>\AppData\Roaming\npm\claude.cmd"
-$orchForEccRoot = node -e "const plugins=JSON.parse(require('child_process').execFileSync(process.env.CLAUDE_BIN,['plugin','list','--json'],{encoding:'utf8'})); const plugin=plugins.find((item)=>item.id==='orch-for-ecc@orch-for-ecc'); if(!plugin?.installPath) process.exit(1); process.stdout.write(plugin.installPath)"
-node "$orchForEccRoot/scripts/ecc-check-update.js"
+node "<orch-for-ecc installPath>/scripts/ecc-check-update.js"
 ```
 
 ## 升级机会分析
