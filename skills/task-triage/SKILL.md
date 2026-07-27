@@ -44,7 +44,7 @@ metadata:
 4. 如果偏好不明确，给 2-3 个选项并说明取舍。
 5. 必须做 blind spot pass，检查权限、安全、数据、迁移、回滚、性能、兼容性、测试可行性、外部副作用、文档冲突、发布影响、多 Agent 写入冲突、上下文污染和 MCP 必要性。
 6. 已有项目任务可以建议使用 CodeGraph 或只读探索 Agent 确认影响面；本阶段不要写代码。
-7. 用户确认前，不写入最终 `diagnosis.md`，不进入下一阶段。
+7. 用户确认前，不进入下一阶段。
 8. 优先参考 `${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-capability-map.md` 判断当前任务可能需要的 ECC 能力类别，但本阶段只做能力需求初判，不展开具体 Agent、MCP、workflow 或命令派发方案。
 9. 如果可能需要的 ECC 能力类别存在缺失、改名或不适用风险，只记录为 `/agent-env` 需要处理的能力缺口和 Plan B 输入。
 10. 如果用户或项目提供 `references/`，按 `${CLAUDE_PLUGIN_ROOT}/orchestration/reference-inputs.md` 将其作为只读参考输入，用于识别目标、范围、非目标、风险、验收候选和冲突；不得把 references 内容自动视为验收标准。
@@ -172,7 +172,7 @@ metadata:
 
 ## 运行文档
 
-用户确认前只输出草案。用户明确确认后，才可建议写入：
+写入：
 
 ```text
 .claude/runs/<date>-<task-slug>/diagnosis.md
