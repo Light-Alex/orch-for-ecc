@@ -12,7 +12,7 @@ metadata:
   triggerMode: explicit-only
   scenario: agent-environment
   requires: [task-triage]
-  capabilityMap: orchestration/ecc-capability-map.md
+  capabilityMap: ${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-capability-map.md
 ---
 # Agent 环境初始化
 
@@ -41,13 +41,13 @@ metadata:
 2. Prompt 不能物理删除当前会话已加载上下文；如果上下文污染严重，建议新开会话，并把分诊结果和环境方案作为启动材料。
 3. 用户确认前，只输出 `agent-environment.md` 草案。
 4. 如果环境方案发现分诊结果不足或风险等级不合理，应回退到 `/task-triage`。
-5. 环境初始化必须优先参考 `orchestration/ecc-baseline.md` 和 `orchestration/ecc-capability-map.md`，查询当前可用 `/ecc:*` 能力和 ECC MCP 配置模板参考。
+5. 环境初始化必须优先参考 `${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-baseline.md` 和 `${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-capability-map.md`，查询当前可用 `/ecc:*` 能力和 ECC MCP 配置模板参考。
 6. 如果存在匹配的 ECC 能力，应在命令策略、Agents、Workflows 或验证门禁中显式列出推荐调用的 `/ecc:*` 指令。
 7. MCP 只输出配置建议，不默认启用，不自动复制配置，不写 settings，不处理凭证。
 8. 如果 ECC 能力缺失、改名或不适用，应按 Plan B 降级，并说明能力缺口、替代方案和风险。
 9. 命令、MCP、Agent 名称以当前项目实际可用能力为准，不把 `/ecc:*` 写成硬依赖。
 10. 输出内容能用表格呈现时优先使用表格，方便用户审阅、确认和复用。
-11. 如果存在 `references/`，按 `orchestration/reference-inputs.md` 在上下文策略中明确哪些 reference 需要加载、按需加载或避免加载；`references/` 默认只读，不生成、不修改、不清理。
+11. 如果存在 `references/`，按 `${CLAUDE_PLUGIN_ROOT}/orchestration/reference-inputs.md` 在上下文策略中明确哪些 reference 需要加载、按需加载或避免加载；`references/` 默认只读，不生成、不修改、不清理。
 
 ## 输出格式
 
@@ -98,7 +98,7 @@ metadata:
 | 规划 | `/ecc:plan` | `ecc:planner` | 明确范围和验收 | Claude Code plan mode |
 | 审查 | `/ecc:code-review` | `ecc:code-reviewer` | 正确性和维护性审查 | 内建 code review / 手动 checklist |
 
-说明：优先查询 `orchestration/ecc-capability-map.md` 和当前可用 ECC 能力；如果 ECC 能力缺失，按 Plan B 降级。
+说明：优先查询 `${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-capability-map.md` 和当前可用 ECC 能力；如果 ECC 能力缺失，按 Plan B 降级。
 
 ## Rules / Hooks 策略
 

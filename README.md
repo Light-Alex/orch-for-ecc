@@ -65,31 +65,31 @@ flowchart TD
 以下是 6 个主要编码场景的 prompt 示例：
 
 ```text
-/orch-for-ecc:mvp-build
+/orch-for-ecc:task-triage
 我要从零实现一个最小可用的任务看板，包含任务创建、状态切换和本地持久化。请先确认范围，再给出实施计划并执行。
 ```
 
 ```text
-/orch-for-ecc:feature-add
+/orch-for-ecc:task-triage
 在现有项目中新增导出 CSV 功能，入口放在列表页工具栏。请先寻找相似导出/下载实现，再按现有风格实现并验证。
 ```
 
 ```text
-/orch-for-ecc:feature-change
+/orch-for-ecc:task-triage
 将现有登录失败提示从通用错误改为区分账号不存在、密码错误和账号锁定。请保持接口兼容，并说明风险。
 ```
 
 ```text
-/orch-for-ecc:bug-fix
+/orch-for-ecc:task-triage
 修复用户保存资料后页面仍显示旧昵称的问题。请先定位数据流和缓存更新点，再做最小修复并补充验证。
 ```
 
 ```text
-/orch-for-ecc:refactor-safe
+/orch-for-ecc:task-triage
 在不改变行为的前提下，重构订单金额计算逻辑，减少重复分支。请先建立行为保护，再执行安全重构。
 ```
 
 ```text
-/orch-for-ecc:migrate-safe
+/orch-for-ecc:task-triage
 将项目中的旧版路由 API 迁移到新版路由写法。请先盘点影响范围，分阶段迁移，并保留回滚思路。
 ```

@@ -12,7 +12,7 @@ metadata:
   triggerMode: explicit-only
   scenario: feature-change
   requires: [task-triage, agent-env, task-docs]
-  capabilityMap: orchestration/ecc-capability-map.md
+  capabilityMap: ${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-capability-map.md
 ---
 # 已有功能行为变更
 
@@ -29,7 +29,7 @@ metadata:
 
 如果用户没有提供完整材料，先补齐关键缺口。推荐包含：
 
-- 通用输入材料：遵循 `orchestration/rules.md` 的“执行场景 skill 通用规则 / 通用输入材料”。
+- 通用输入材料：遵循 `${CLAUDE_PLUGIN_ROOT}/orchestration/rules.md` 的“执行场景 skill 通用规则 / 通用输入材料”。
 - 场景特有输入：旧行为、新行为、兼容性要求、影响用户 / API / 数据 / 权限、是否保留旧行为开关、验收标准。
 
 ## 核心规则
@@ -41,7 +41,7 @@ metadata:
 5. 只做必要改动，不顺手重构无关代码。
 6. 涉及认证、权限、计费、数据写入、数据导出或外部副作用时，升级风险并暂停确认。
 7. 多个 Agent 不应并行修改同一批文件；如需并行写入，必须先按模块或文件边界拆分。
-8. 通用工作流规则遵循 `orchestration/rules.md` 的“执行场景 skill 通用规则”。
+8. 通用工作流规则遵循 `${CLAUDE_PLUGIN_ROOT}/orchestration/rules.md` 的“执行场景 skill 通用规则”。
 
 ## 流程
 
@@ -56,7 +56,7 @@ metadata:
 
 ## 执行前输出
 
-遵循 `orchestration/rules.md` 的“执行场景 skill 通用规则 / 通用执行前输出”。
+遵循 `${CLAUDE_PLUGIN_ROOT}/orchestration/rules.md` 的“执行场景 skill 通用规则 / 通用执行前输出”。
 
 ## 输出要求
 

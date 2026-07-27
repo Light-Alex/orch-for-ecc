@@ -22,18 +22,18 @@
 
 ## 共享编排资料
 
-共享规则、模板、ECC 能力映射和 ECC 插件能力基线不属于 skill，不放在本目录中。它们位于项目根目录的 `orchestration/` 和 `templates/`：
+共享规则、模板、ECC 能力映射和 ECC 插件能力基线不属于 skill，不放在本目录中。它们位于插件根目录的 `orchestration/` 和 `templates/`：
 
-- `orchestration/rules.md`
-- `orchestration/ecc-capability-map.md`
-- `orchestration/ecc-baseline.md`
-- `templates/workflow-execution-template.md`
-- `templates/report-template.md`
+- `${CLAUDE_PLUGIN_ROOT}/orchestration/rules.md`
+- `${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-capability-map.md`
+- `${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-baseline.md`
+- `${CLAUDE_PLUGIN_ROOT}/templates/workflow-execution-template.md`
+- `${CLAUDE_PLUGIN_ROOT}/templates/report-template.md`
 
 ## 使用原则
 
 1. 只在用户显式输入对应命名空间入口（如 `/orch-for-ecc:task-triage`）时使用。
 2. 单阶段调用只执行该阶段，不自动串联后续阶段。
 3. 信息不足时先补齐关键缺口，不假装上下文完整。
-4. 执行前优先参考 `orchestration/ecc-capability-map.md`，显式列出推荐 ECC 能力和 Plan B。
+4. 执行前优先参考 `${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-capability-map.md`，显式列出推荐 ECC 能力和 Plan B。
 5. 高风险、不可逆、生产副作用、凭证、权限扩大或文档冲突时暂停确认。

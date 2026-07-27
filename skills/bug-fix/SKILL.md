@@ -12,7 +12,7 @@ metadata:
   triggerMode: explicit-only
   scenario: bug-fix
   requires: [task-triage, agent-env, task-docs]
-  capabilityMap: orchestration/ecc-capability-map.md
+  capabilityMap: ${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-capability-map.md
 ---
 # Bug 定位与修复
 
@@ -27,7 +27,7 @@ metadata:
 
 如果用户没有提供完整材料，先补齐关键缺口。推荐包含：
 
-- 通用输入材料：遵循 `orchestration/rules.md` 的“执行场景 skill 通用规则 / 通用输入材料”。
+- 通用输入材料：遵循 `${CLAUDE_PLUGIN_ROOT}/orchestration/rules.md` 的“执行场景 skill 通用规则 / 通用输入材料”。
 - 场景特有输入：现象、预期、复现步骤、输入、日志、环境、优先检查范围。
 
 ## 核心规则
@@ -38,7 +38,7 @@ metadata:
 4. 不删除测试来让验证通过。
 5. 影响核心数据、安全、认证、权限时升级风险并暂停确认。
 6. 无法复现时，不猜修；输出缺失信息和下一步诊断探针。
-7. 通用工作流规则遵循 `orchestration/rules.md` 的“执行场景 skill 通用规则”。
+7. 通用工作流规则遵循 `${CLAUDE_PLUGIN_ROOT}/orchestration/rules.md` 的“执行场景 skill 通用规则”。
 
 ## 流程
 
@@ -53,7 +53,7 @@ metadata:
 
 ## 执行前输出
 
-遵循 `orchestration/rules.md` 的“执行场景 skill 通用规则 / 通用执行前输出”。
+遵循 `${CLAUDE_PLUGIN_ROOT}/orchestration/rules.md` 的“执行场景 skill 通用规则 / 通用执行前输出”。
 
 ## 输出要求
 

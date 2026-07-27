@@ -19,7 +19,7 @@ status: experimental
 5. 用户审批 `implementation-plan.md` 后，对应 skill 才能进入实施；开始后默认在“自动执行边界”内持续推进，只有越界、风险升级或基线冲突时才暂停确认。
 6. 每个阶段必须尽量落到具体 `/ecc:*` 指令或 `ecc:<agent>` 名称；如果没有合适能力，Plan B 必须说明具体由谁用什么方式完成。
 7. 同一批文件同一阶段只允许一个最终写入/合并方；探索、审查、安全、性能、文档建议类 Agent 默认只读。
-8. `references/` 是人工维护的参考材料区，使用规则见 `orchestration/reference-inputs.md`；Agent 只能读取和引用，不生成、不修改、不清理；其内容不自动成为验收标准。
+8. `references/` 是人工维护的参考材料区，使用规则见 `${CLAUDE_PLUGIN_ROOT}/orchestration/reference-inputs.md`；Agent 只能读取和引用，不生成、不修改、不清理；其内容不自动成为验收标准。
 9. Learn 阶段产生的内容只能进入候选区，不自动晋升为正式 skill、rule、workflow、hook 或长期记忆。
 
 ## 输出格式

@@ -337,6 +337,6 @@ node "<orch-for-ecc installPath>/scripts/ecc-check-update.js"
 2. `orchestration/ecc-baseline.md` 没有保存 ECC 全量组件清单、MCP 模板清单或当前启用 MCP 摘要。
 3. `orchestration/ecc-capability-map.md` 中推荐的 `/ecc:*` 指令和 `ecc:*` Agent 有 Plan B。
 4. `orchestration/ecc-capability-map.md` 中的 MCP 配置模板清单与当前环境 `mcp-configs/mcp-servers.json` 一致。
-5. 8 个入口 skill 的 `metadata.capabilityMap` 仍指向 `orchestration/ecc-capability-map.md`。
+5. 9 个入口 skill 的 `metadata.capabilityMap` 仍指向 `${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-capability-map.md`。
 6. 没有修改 Claude Code settings、hooks、MCP 配置或全局 ECC 插件目录。
 7. Markdown 末尾换行正常。
