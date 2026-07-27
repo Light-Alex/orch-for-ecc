@@ -24,6 +24,7 @@
 const fs = require('fs')
 const path = require('path')
 const { exists, findClaudeBin, runClaude, warning } = require('./lib/claude-cli')
+const { ECC_PLUGIN_ID, ORCH_PLUGIN_ID, findPluginById, parsePluginList: parsePluginListJson } = require('./lib/claude-plugin')
 
 const rawArgs = process.argv.slice(2)
 const args = new Set(rawArgs)
@@ -66,9 +67,6 @@ Output:
 `)
   process.exit(0)
 }
-
-const ORCH_PLUGIN_ID = 'orch-for-ecc@orch-for-ecc'
-const ECC_PLUGIN_ID = 'ecc@ecc'
 
 let ROOT = null
 let BASELINE = null
@@ -217,45 +215,28 @@ function escapeRegExp(value) {
 }
 
 function parsePluginList(stdout, warnings, requireOrchPlugin = true) {
-  try {
-    const plugins = JSON.parse(stdout)
-    if (!Array.isArray(plugins)) {
-      warnings.push(warning(
-        'PLUGIN_LIST_SCHEMA_INVALID',
-        'Expected `claude plugin list --json` output to be an array.'
-      ))
-      return { orchPlugin: null, eccPlugin: null }
-    }
-
-    const orchPlugin = plugins.find((item) => item && item.id === ORCH_PLUGIN_ID) || null
-    const eccPlugin = plugins.find((item) => item && item.id === ECC_PLUGIN_ID) || null
-    if (requireOrchPlugin && !orchPlugin) {
-      warnings.push(warning(
-        'ORCH_PLUGIN_NOT_FOUND',
-        `${ORCH_PLUGIN_ID} was not found in \`claude plugin list --json\`.`,
-        `Install or enable ${ORCH_PLUGIN_ID}; the baseline is read from its installPath.`
-      ))
-    } else if (orchPlugin && !orchPlugin.installPath) {
-      warnings.push(warning(
-        'ORCH_PLUGIN_INSTALL_PATH_MISSING',
-        `${ORCH_PLUGIN_ID} is missing installPath; cannot locate the orch-for-ecc baseline.`
-      ))
-    }
-    if (!eccPlugin) {
-      warnings.push(warning(
-        'ECC_PLUGIN_NOT_FOUND',
-        `${ECC_PLUGIN_ID} was not found in \`claude plugin list --json\`.`
-      ))
-    }
-    return { orchPlugin, eccPlugin }
-  } catch (error) {
+  const plugins = parsePluginListJson(stdout, warnings)
+  const orchPlugin = findPluginById(plugins, ORCH_PLUGIN_ID)
+  const eccPlugin = findPluginById(plugins, ECC_PLUGIN_ID)
+  if (requireOrchPlugin && !orchPlugin) {
     warnings.push(warning(
-      'PLUGIN_LIST_JSON_PARSE_FAILED',
-      'Failed to parse `claude plugin list --json` output as JSON.',
-      String(error.message || error)
+      'ORCH_PLUGIN_NOT_FOUND',
+      `${ORCH_PLUGIN_ID} was not found in \`claude plugin list --json\`.`,
+      `Install or enable ${ORCH_PLUGIN_ID}; the baseline is read from its installPath.`
     ))
-    return { orchPlugin: null, eccPlugin: null }
+  } else if (orchPlugin && !orchPlugin.installPath) {
+    warnings.push(warning(
+      'ORCH_PLUGIN_INSTALL_PATH_MISSING',
+      `${ORCH_PLUGIN_ID} is missing installPath; cannot locate the orch-for-ecc baseline.`
+    ))
   }
+  if (!eccPlugin) {
+    warnings.push(warning(
+      'ECC_PLUGIN_NOT_FOUND',
+      `${ECC_PLUGIN_ID} was not found in \`claude plugin list --json\`.`
+    ))
+  }
+  return { orchPlugin, eccPlugin }
 }
 
 function findMcpTemplateFile(plugin, warnings) {
@@ -427,10 +408,10 @@ function main() {
   let orchMcpTemplates = []
   const sourceRoot = sourceRootArg ? path.resolve(sourceRootArg) : null
   const sourceRootAvailable = Boolean(sourceRoot && validateSourceRoot(sourceRoot, warnings))
-  const installedBaselineAvailable = Boolean(orchPlugin && orchPlugin.installPath)
-  const baselineAvailable = sourceRootAvailable || installedBaselineAvailable
-  if (sourceRootAvailable) {
-    configureBaselineRoot(sourceRoot)
+  const installedBaselineAvailable = Boolean(!sourceRootRequested && orchPlugin && orchPlugin.installPath)
+  const baselineAvailable = sourceRootRequested ? sourceRootAvailable : installedBaselineAvailable
+  if (sourceRootRequested) {
+    if (sourceRootAvailable) configureBaselineRoot(sourceRoot)
   } else if (installedBaselineAvailable) {
     configureBaselineRoot(orchPlugin.installPath)
   }
@@ -573,7 +554,7 @@ function main() {
       plugin: eccPlugin,
       orchPlugin,
       baselineRoot: ROOT,
-      baselineSource: sourceRootAvailable ? 'source-root' : 'installed-plugin',
+      baselineSource: baselineAvailable ? (sourceRootRequested ? 'source-root' : 'installed-plugin') : null,
       sourceRoot,
       invocationCwd,
       componentCounts,

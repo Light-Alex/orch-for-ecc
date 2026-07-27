@@ -23,11 +23,29 @@ status: experimental
 
 定位顺序：
 
-1. 插件运行时优先读取 `${CLAUDE_PLUGIN_ROOT}/...`。
-2. 源码开发或本仓库调试时，如果 `${CLAUDE_PLUGIN_ROOT}` 不可用，而当前工作目录存在 `.claude-plugin/plugin.json` 且 `name` 为 `orch-for-ecc`，可读取当前仓库根目录下同名文件。
-3. 只有插件根目录和源码仓库根目录都无法定位时，才报告这些共享资料缺失，并把该缺口列为 Plan B/未知项。
+1. 插件运行模式是默认模式。用户通过 `/orch-for-ecc:*` 使用已安装插件时，必须先通过 Claude 插件元数据定位 `orch-for-ecc@orch-for-ecc.installPath`，并把该目录作为 `${CLAUDE_PLUGIN_ROOT}`；不要把当前工作目录或目标业务项目相对路径当作 orch-for-ecc 插件根目录。
+2. 推荐定位方式是运行 `claude plugin list --json`，选择 `id === "orch-for-ecc@orch-for-ecc"` 的对象，并读取其 `installPath`。不要为了 bootstrap `${CLAUDE_PLUGIN_ROOT}` 而先依赖 `${CLAUDE_PLUGIN_ROOT}/scripts/...`。
+3. 源码开发或本仓库调试时，只有在用户明确要求维护源码仓库、或命令显式传入 `--source-root <path>`，且该路径存在 `.claude-plugin/plugin.json`、`name` 为 `orch-for-ecc` 时，才可读取源码仓库根目录下同名文件。
+4. 只有插件根目录和显式源码根目录都无法定位时，才报告这些共享资料缺失，并把该缺口列为 Plan B/未知项。
 
 不要把目标业务项目目录下没有 `orchestration/` 或 `templates/` 误判为 orch-for-ecc 共享资料缺失。
+
+## 依赖插件定位
+
+如需读取当前已安装 `ecc@ecc` 插件内置文件（例如 `README.md`、`mcp-configs/mcp-servers.json`、skills、agents 或 commands），必须通过 Claude 插件元数据定位：
+
+1. 运行 `claude plugin list --json`。
+2. 选择 `id === "ecc@ecc"` 的对象。
+3. 使用该对象的 `installPath` 作为 ECC 插件根目录。
+4. 只在该根目录内读取目标文件。
+
+脚本化定位可使用：
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/locate-plugin.js" --plugin-id ecc@ecc
+```
+
+不要递归扫描 `~/.claude/plugins/cache/**/README.md`、按目录名猜测版本路径，或在未确认 `installPath` 前读取 Claude 插件缓存中的随机文件。其他 skill 如果需要定位 `ecc@ecc` 插件目录，也必须遵守本节规则。
 
 ## 自适应规则
 

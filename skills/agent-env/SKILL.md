@@ -43,7 +43,7 @@ metadata:
 2. Prompt 不能物理删除当前会话已加载上下文；如果上下文污染严重，建议新开会话，并把分诊结果和环境方案作为启动材料。
 3. 用户确认前，只输出 `agent-environment.md` 草案。
 4. 如果环境方案发现分诊结果不足或风险等级不合理，应回退到 `/orch-for-ecc:task-triage`。
-5. 环境初始化必须优先参考 `${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-baseline.md`、`${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-capability-map.md`，以及当前已安装 `ecc@ecc` 插件根目录的 `README.md`。
+5. 环境初始化必须优先参考 `${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-baseline.md`、`${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-capability-map.md`，以及当前已安装 `ecc@ecc` 插件根目录的 `README.md`。`${CLAUDE_PLUGIN_ROOT}` 在插件运行模式下必须来自 `orch-for-ecc@orch-for-ecc.installPath`；只有明确源码开发或本仓库调试时才使用显式 `--source-root <path>`。`ecc@ecc` 插件根目录必须来自 `ecc@ecc.installPath`。不要通过扫描 `~/.claude/plugins/cache/**/README.md` 定位任何插件目录。
 6. 如果存在匹配的 ECC 能力，应在“ECC 能力建议”中列出推荐 `/ecc:*` 指令、可选 `ecc:*` Agent、触发条件和 Plan B。
 7. MCP 只输出配置建议；当前 Claude Code 会话的 MCP 启停应交给 `/mcp`，不自动复制配置，不写 settings，不处理凭证。
 8. ECC 环境变量只输出建议、适用条件和风险，不自动设置，不读取、不记录 token 或凭证。

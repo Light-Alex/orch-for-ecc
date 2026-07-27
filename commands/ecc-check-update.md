@@ -50,6 +50,28 @@ metadata:
    - 如果仅发现新增能力：作为可选升级机会处理，不默认生成 update 计划。
 9. 等待用户审批：用户批准前不写入 orch-for-ecc 插件配套文件。
 
+## 插件根目录定位
+
+用户正常执行 `/orch-for-ecc:ecc-check-update` 时，默认是插件运行模式：必须通过 `claude plugin list --json` 定位 `orch-for-ecc@orch-for-ecc.installPath`，并从该安装目录读取本插件内置基线；不要把当前工作目录或目标业务项目相对路径当作 orch-for-ecc 根目录。
+
+维护本源码仓库时才使用源码开发模式，并显式传入：
+
+```bash
+node scripts/ecc-check-update.js --source-root .
+```
+
+需要读取 `ecc@ecc` 内置文件时，必须通过同一份插件元数据定位 `ecc@ecc.installPath`，例如：
+
+- `ecc@ecc.installPath/README.md`
+- `ecc@ecc.installPath/mcp-configs/mcp-servers.json`
+
+不要扫描或猜测 `~/.claude/plugins/cache/**/README.md`。脚本化定位可使用：
+
+```bash
+node "<orch-for-ecc installPath>/scripts/locate-plugin.js" --plugin-id orch-for-ecc@orch-for-ecc
+node "<orch-for-ecc installPath>/scripts/locate-plugin.js" --plugin-id ecc@ecc
+```
+
 ## 只读检查脚本
 
 优先使用命令和脚本收集事实，不手工猜测。默认模式下，`scripts/ecc-check-update.js` 先按内置规则查找 Claude CLI，再通过 `claude plugin list --json` 定位 `orch-for-ecc@orch-for-ecc.installPath` 作为基线来源，读取该插件安装目录下的 `orchestration/` 和 `skills/`；当前工作目录只表示命令触发位置，不作为基线来源。
