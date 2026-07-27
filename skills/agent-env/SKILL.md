@@ -231,7 +231,7 @@ metadata:
 
 ## 运行文档
 
-写入：
+以交互模式向用户确认待确认问题后，写入：
 
 ```text
 .claude/runs/<date>-<task-slug>/agent-environment.md
