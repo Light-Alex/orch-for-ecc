@@ -21,7 +21,7 @@ metadata:
 
 ## 用途
 
-把已确认的任务分诊结果和 Agent 环境方案转成后续执行可读取、可审批、可交接的文档初始化方案。这个 skill 只输出文档初始化草案；用户确认前不进入执行阶段，也不生成实施计划。
+把已确认的任务分诊结果和 Agent 环境方案转成后续执行可读取、可审批、可交接的文档初始化方案。这个 skill 默认只输出文档初始化草案；完成交互式确认并获得用户明确批准后，自动写入对应运行文档。用户确认前不进入执行阶段，也不生成实施计划。
 
 ## 输入前提
 
@@ -169,6 +169,8 @@ metadata:
 13. 如果没有合适的 `/ecc:*` 指令或 `ecc:<agent>`，Plan B 必须说明由谁手写/更新哪些文档，以及缺失能力带来的审计风险。
 14. “执行方式”必须说明具体 `/ecc:*` 指令、`ecc:<agent>`、最终写入/合并方和 Plan B；多个 Agent 参与时，同一文档同一阶段只能有一个最终写入/合并方。
 15. 如果文档计划引用 `references/`，按 `${CLAUDE_PLUGIN_ROOT}/orchestration/reference-inputs.md` 说明引用来源、影响的文档和仍需用户确认的内容；不得把 reference draft 自动晋升为正式 docs、releases 或验收清单。
+16. 文档初始化的待确认项必须通过交互模式逐项确认，覆盖文档范围、references 影响、最终写入/合并方、人审点和是否批准写入运行文档；完成待确认项后先展示最终草案，再请求用户明确批准写入。
+17. 用户确认前只保留草案，不写入正式 `document-initialization.md`；非交互输入、沉默、默认选项或模糊的“继续”不构成批准。
 
 ## 输出格式
 
@@ -210,20 +212,27 @@ metadata:
 - 原因：
 
 ## 需要用户审批的内容
-1. ...
+1. 确认待创建或更新的文档、跳过的文档及原因。
+2. 确认 `references/` 的引用来源、影响文档和仍需用户确认的内容。
+3. 确认每个文档的最终写入/合并方和人审点。
+4. 确认是否批准写入 `.claude/runs/<date>-<task-slug>/document-initialization.md`。
+
+交互确认要求：主动通过交互模式逐项确认以上审批内容；完成审批内容后先展示最终草案，再请求用户明确批准写入 `document-initialization.md`。用户修改、拒绝或未完整确认时，只更新草案或回退，不写入正式运行文档。
 
 ## 下一步
-- 用户确认后：选择 `/mvp-build`、`/feature-add`、`/feature-change`、`/refactor-safe`、`/migrate-safe` 或 `/bug-fix`。
-- 用户修改后：更新文档初始化方案。
-- 环境方案不足时：回退到 `/agent-env`。
+- 用户明确确认全部审批内容并批准写入后：自动写入 `.claude/runs/<date>-<task-slug>/document-initialization.md`，然后选择 `/mvp-build`、`/feature-add`、`/feature-change`、`/refactor-safe`、`/migrate-safe` 或 `/bug-fix`。
+- 用户修改后：更新文档初始化方案后重新确认，不写入旧方案。
+- 环境方案不足时：回退到 `/agent-env`，不写入正式运行文档。
 ```
 
 ## 运行文档
 
-用户确认前只输出草案。用户明确确认后，才可建议写入：
+交互确认完成、最终草案已展示且用户明确批准“写入该运行文档”后，自动写入：
 
 ```text
 .claude/runs/<date>-<task-slug>/document-initialization.md
 ```
+
+未完成交互确认前只保留草案，不写入正式运行文档。回答问题不等于批准写入；该确认只授权写入 `document-initialization.md`，不授权进入执行阶段、生成 `implementation-plan.md`、实现代码、配置变更、外部访问或项目文件改动。非交互输入、沉默、默认选项或模糊的“继续”不构成批准。
 
 日期建议使用 ISO 格式，例如 `2026-07-21`。

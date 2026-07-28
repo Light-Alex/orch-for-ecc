@@ -23,7 +23,7 @@ metadata:
 
 根据已确认的任务分诊结果，裁剪本次任务需要的上下文、ECC 能力、MCP、Agent、ECC 运行时环境变量、验证与审查策略。
 
-这个 skill 只输出 `agent-environment.md` 草案；用户确认前不进入文档初始化或实现，也不直接修改 settings、MCP、hooks、rules 或环境变量。
+这个 skill 默认只输出 `agent-environment.md` 草案；完成交互式确认并获得用户明确批准后，自动写入对应运行文档。用户确认前不进入文档初始化或实现，也不直接修改 settings、MCP、hooks、rules 或环境变量。
 
 ## 输入前提
 
@@ -41,20 +41,21 @@ metadata:
 
 1. 不默认全量启用 ECC 能力。
 2. Prompt 不能物理删除当前会话已加载上下文；如果上下文污染严重，建议新开会话，并把分诊结果和环境方案作为启动材料。
-3. 用户确认前，只输出 `agent-environment.md` 草案。
-4. 如果环境方案发现分诊结果不足或风险等级不合理，应回退到 `/orch-for-ecc:task-triage`。
-5. 环境初始化必须优先参考 `${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-baseline.md`、`${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-capability-map.md`，以及当前已安装 `ecc@ecc` 插件根目录的 `README.md`。`${CLAUDE_PLUGIN_ROOT}` 在插件运行模式下必须来自 `orch-for-ecc@orch-for-ecc.installPath`；只有明确源码开发或本仓库调试时才使用显式 `--source-root <path>`。`ecc@ecc` 插件根目录必须来自 `ecc@ecc.installPath`。不要通过扫描 `~/.claude/plugins/cache/**/README.md` 定位任何插件目录。
-6. 如果存在匹配的 ECC 能力，应在“ECC 能力建议”中列出推荐 `/ecc:*` 指令、可选 `ecc:*` Agent、触发条件和 Plan B。
-7. MCP 默认只输出配置建议；如需启停当前 Claude Code 会话的 MCP，应在交互式方案中列出 `/mcp` 手动步骤或需授权的自动执行范围，不自动复制配置、不写 settings、不处理凭证。
-8. ECC 环境变量默认只输出建议、适用条件和风险；如需设置，必须在交互式方案中说明手动设置方式或需授权的自动执行范围，不读取、不记录 token 或凭证。
-9. Rules 不作为本 skill 的常规配置项；ECC plugin 不自动分发 rules，如确需长期规则约束，应在交互式方案中建议用户按 ECC README 选择性安装，或列出需单独授权的安装动作。
-10. Hooks 不作为本 skill 的常规配置项；ECC plugin hooks 由 Claude Code 自动加载，如需调节，应在交互式方案中建议使用 ECC runtime 环境变量，并列出需授权的自动执行范围。
-11. Workflow 不作为本 skill 的默认配置项；只有用户明确要求多 Agent workflow，或 L/XL 任务确有并行编排收益时，才作为可选能力建议。
-12. 如果 ECC 能力缺失、改名或不适用，应按 Plan B 降级，并说明能力缺口、替代方案和风险。
-13. 表格用于对比、矩阵和配置建议；简单流程、下一步和注意事项优先用列表。
-14. 如果存在 `references/`，按 `${CLAUDE_PLUGIN_ROOT}/orchestration/reference-inputs.md` 在上下文策略中明确哪些 reference 需要加载、按需加载或避免加载；`references/` 默认只读，不生成、不修改、不清理。
-15. 用户批准环境方案后，必须先按方案完成当前业务项目的 Agent 环境初始化，并输出“初始化结果记录”；未完成初始化前，不进入 `/orch-for-ecc:task-docs`。
-16. 批准环境方案默认只授权软初始化；硬初始化动作必须按方案中的“是否自动执行”字段和用户确认结果执行。涉及配置、MCP、环境变量、rules、hooks、凭证或外部副作用时，必须在交互式方案中单独列出风险、手动步骤和需授权的自动执行范围。
+3. 用户确认前，只输出 `agent-environment.md` 草案，不写入正式运行文档。
+4. 环境方案的待确认项必须通过交互模式逐项确认；非交互输入、沉默、默认选项或模糊的“继续”不构成批准。
+5. 如果环境方案发现分诊结果不足或风险等级不合理，应回退到 `/orch-for-ecc:task-triage`。
+6. 环境初始化必须优先参考 `${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-baseline.md`、`${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-capability-map.md`，以及当前已安装 `ecc@ecc` 插件根目录的 `README.md`。`${CLAUDE_PLUGIN_ROOT}` 在插件运行模式下必须来自 `orch-for-ecc@orch-for-ecc.installPath`；只有明确源码开发或本仓库调试时才使用显式 `--source-root <path>`。`ecc@ecc` 插件根目录必须来自 `ecc@ecc.installPath`。不要通过扫描 `~/.claude/plugins/cache/**/README.md` 定位任何插件目录。
+7. 如果存在匹配的 ECC 能力，应在“ECC 能力建议”中列出推荐 `/ecc:*` 指令、可选 `ecc:*` Agent、触发条件和 Plan B。
+8. MCP 默认只输出配置建议；如需启停当前 Claude Code 会话的 MCP，应在交互式方案中列出 `/mcp` 手动步骤或需授权的自动执行范围，不自动复制配置、不写 settings、不处理凭证。
+9. ECC 环境变量默认只输出建议、适用条件和风险；如需设置，必须在交互式方案中说明手动设置方式或需授权的自动执行范围，不读取、不记录 token 或凭证。
+10. Rules 不作为本 skill 的常规配置项；ECC plugin 不自动分发 rules，如确需长期规则约束，应在交互式方案中建议用户按 ECC README 选择性安装，或列出需单独授权的安装动作。
+11. Hooks 不作为本 skill 的常规配置项；ECC plugin hooks 由 Claude Code 自动加载，如需调节，应在交互式方案中建议使用 ECC runtime 环境变量，并列出需授权的自动执行范围。
+12. Workflow 不作为本 skill 的默认配置项；只有用户明确要求多 Agent workflow，或 L/XL 任务确有并行编排收益时，才作为可选能力建议。
+13. 如果 ECC 能力缺失、改名或不适用，应按 Plan B 降级，并说明能力缺口、替代方案和风险。
+14. 表格用于对比、矩阵和配置建议；简单流程、下一步和注意事项优先用列表。
+15. 如果存在 `references/`，按 `${CLAUDE_PLUGIN_ROOT}/orchestration/reference-inputs.md` 在上下文策略中明确哪些 reference 需要加载、按需加载或避免加载；`references/` 默认只读，不生成、不修改、不清理。
+16. 用户批准环境方案后，必须先按方案完成当前业务项目的 Agent 环境初始化，并输出“初始化结果记录”；未完成初始化前，不进入 `/orch-for-ecc:task-docs`。
+17. 批准环境方案默认只授权软初始化；自动写入运行文档不等于授权硬初始化。硬初始化动作必须按方案中的“是否自动执行”字段和用户确认结果执行。涉及配置、MCP、环境变量、rules、hooks、凭证、外部系统或项目文件时，必须在交互式方案中单独列出风险、手动步骤和需授权的自动执行范围。
 
 ## 输出格式
 
@@ -196,7 +197,7 @@ metadata:
 
 ## 初始化结果记录
 
-用户批准后，Agent 应先输出：
+用户批准环境方案并自动写入 `agent-environment.md` 后，Agent 应先按批准范围完成初始化，再输出：
 
 - 已生效的软初始化：
   - `<上下文策略 / ECC 能力 / Agent 派发 / 验证门禁>`
@@ -211,6 +212,8 @@ metadata:
 
 ## 需要用户确认
 
+以下事项必须作为交互确认清单处理。先确认待确认问题，完成后展示最终草案，再确认是否批准写入 `agent-environment.md`；回答问题和批准写入不可混淆。
+
 | 事项 | 原因 | 默认建议 |
 | --- | --- | --- |
 | 是否调整 ECC 环境变量 | 可能影响当前或后续 Claude Code 行为 | 列出建议值、风险、手动命令和需授权的自动执行范围 |
@@ -221,20 +224,23 @@ metadata:
 
 ## 下一步
 
-- 如果用户确认环境方案：
-  1. 先按“批准后初始化动作”初始化当前业务项目 Agent 环境；
-  2. 输出“初始化结果记录”；
-  3. 再进入 `/orch-for-ecc:task-docs`。
-- 如果用户要求修改：更新本方案后重新确认。
-- 如果分诊、风险或验收标准不足：回退到 `/orch-for-ecc:task-triage`。
+- 如果用户明确确认全部待确认问题并批准写入环境方案：
+  1. 自动写入 `.claude/runs/<date>-<task-slug>/agent-environment.md`；
+  2. 先按“批准后初始化动作”初始化当前业务项目 Agent 环境；
+  3. 输出“初始化结果记录”；
+  4. 再进入 `/orch-for-ecc:task-docs`。
+- 如果用户要求修改：更新本方案后重新确认，不写入旧方案。
+- 如果分诊、风险或验收标准不足：回退到 `/orch-for-ecc:task-triage`，不写入正式运行文档。
 ```
 
 ## 运行文档
 
-以交互模式向用户确认待确认问题后，写入：
+交互确认完成、最终草案已展示且用户明确批准“写入该运行文档”后，自动写入：
 
 ```text
 .claude/runs/<date>-<task-slug>/agent-environment.md
 ```
+
+未完成交互确认前只保留草案，不写入正式运行文档。回答问题不等于批准写入；该确认只授权写入 `agent-environment.md`，不授权实现、进入文档初始化、硬初始化、配置/MCP/环境变量/rules/hooks 修改、外部访问或项目文件改动。非交互输入、沉默、默认选项或模糊的“继续”不构成批准。
 
 日期建议使用 ISO 格式，例如 `2026-07-21`。
