@@ -1,8 +1,8 @@
 ---
 name: agent-env
-description: Agent 环境初始化；根据已确认的分诊结果裁剪上下文、ECC 能力、MCP、Agent、ECC 运行时环境变量、验证与审查策略。
+description: Agent 环境初始化；根据 diagnosis.md 和 ECC 插件配置项，探测并初始化当前业务项目的项目级 Agent 环境。
 disable-model-invocation: true
-argument-hint: "[已确认的任务分诊结果]"
+argument-hint: "[diagnosis.md 路径]"
 metadata:
   language: zh-CN
   maturity: experimental
@@ -21,226 +21,205 @@ metadata:
 
 ## 用途
 
-根据已确认的任务分诊结果，裁剪本次任务需要的上下文、ECC 能力、MCP、Agent、ECC 运行时环境变量、验证与审查策略。
+根据已确认的 `diagnosis.md` 和 `ecc` 插件配置项，探测当前业务项目的 Agent 环境，生成简洁的 `agent-environment.md`，并在用户批准后初始化项目级 Agent 环境。
 
-这个 skill 默认只输出 `agent-environment.md` 草案；完成交互式确认并获得用户明确批准后，自动写入对应运行文档。用户确认前不进入文档初始化或实现，也不直接修改 settings、MCP、hooks、rules 或环境变量。
+批准 `agent-environment.md` 即授权本 skill 按方案修改当前业务项目内的：
+
+- `.claude/settings.local.json`
+- `.mcp.json`
+
+不修改用户级配置，不修改 shell profile，不处理凭证，不执行业务实现。
 
 ## 输入前提
 
-- 已有用户确认过的任务分诊结果，或用户在本次输入中提供了等价信息。
-- 如果没有分诊结果，应先建议用户运行 `/orch-for-ecc:task-triage`，或只输出缺失信息清单。
+- 已有用户确认过的 `diagnosis.md`，或用户在本次输入中提供了等价分诊信息。
+- 能确认当前业务项目根目录。
+- 能确认 `ecc@ecc` 插件配置项，或能明确说明缺失项。
 
-## 软初始化与硬初始化
+如果缺少 `diagnosis.md`、业务项目根目录不明确，或分诊信息不足，应停止并列出缺失项；不要猜测初始化。
 
-- 软初始化：通过提示词约束本次任务只使用必要能力、上下文、Agent 和验证门禁。
-- 硬初始化：通过用户明确设置环境变量、调整 MCP、安装 rules 或修改项目配置等方式真实改变运行环境。
+## 工作流程
 
-本 skill 默认先提出交互式方案，不直接修改配置。需要硬初始化时必须单独向用户确认自动执行范围、手动执行步骤和风险；用户确认后，才可按确认结果执行或引导用户执行。
+1. 定位当前业务项目根目录。
+2. 读取并核对 `diagnosis.md`。
+3. 探测当前业务项目的 Agent 环境。
+4. 根据 `diagnosis.md` 和 ECC 插件配置项生成 `agent-environment.md` 草案。
+5. 让用户确认草案；如用户要求修改，先更新草案再重新确认。
+6. 用户批准后，按草案写入项目级配置：
+   - `.claude/settings.local.json`
+   - `.mcp.json`
+7. 输出“初始化结果记录”。
 
-## 核心规则
+未获得用户批准前，只输出草案，不写入 `.claude/settings.local.json` 或 `.mcp.json`。
 
-1. 不默认全量启用 ECC 能力。
-2. Prompt 不能物理删除当前会话已加载上下文；如果上下文污染严重，建议新开会话，并把分诊结果和环境方案作为启动材料。
-3. 用户确认前，只输出 `agent-environment.md` 草案，不写入正式运行文档。
-4. 环境方案的待确认项必须通过交互模式逐项确认；非交互输入、沉默、默认选项或模糊的“继续”不构成批准。
-5. 如果环境方案发现分诊结果不足或风险等级不合理，应回退到 `/orch-for-ecc:task-triage`。
-6. 环境初始化必须优先参考 `${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-baseline.md`、`${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-capability-map.md`，以及当前已安装 `ecc@ecc` 插件根目录的 `README.md`。`${CLAUDE_PLUGIN_ROOT}` 在插件运行模式下必须来自 `orch-for-ecc@orch-for-ecc.installPath`；只有明确源码开发或本仓库调试时才使用显式 `--source-root <path>`。`ecc@ecc` 插件根目录必须来自 `ecc@ecc.installPath`。不要通过扫描 `~/.claude/plugins/cache/**/README.md` 定位任何插件目录。
-7. 如果存在匹配的 ECC 能力，应在“ECC 能力建议”中列出推荐 `/ecc:*` 指令、可选 `ecc:*` Agent、触发条件和 Plan B。
-8. MCP 默认只输出配置建议；如需启停当前 Claude Code 会话的 MCP，应在交互式方案中列出 `/mcp` 手动步骤或需授权的自动执行范围，不自动复制配置、不写 settings、不处理凭证。
-9. ECC 环境变量默认只输出建议、适用条件和风险；如需设置，必须在交互式方案中说明手动设置方式或需授权的自动执行范围，不读取、不记录 token 或凭证。
-10. Rules 不作为本 skill 的常规配置项；ECC plugin 不自动分发 rules，如确需长期规则约束，应在交互式方案中建议用户按 ECC README 选择性安装，或列出需单独授权的安装动作。
-11. Hooks 不作为本 skill 的常规配置项；ECC plugin hooks 由 Claude Code 自动加载，如需调节，应在交互式方案中建议使用 ECC runtime 环境变量，并列出需授权的自动执行范围。
-12. Workflow 不作为本 skill 的默认配置项；只有用户明确要求多 Agent workflow，或 L/XL 任务确有并行编排收益时，才作为可选能力建议。
-13. 如果 ECC 能力缺失、改名或不适用，应按 Plan B 降级，并说明能力缺口、替代方案和风险。
-14. 表格用于对比、矩阵和配置建议；简单流程、下一步和注意事项优先用列表。
-15. 如果存在 `references/`，按 `${CLAUDE_PLUGIN_ROOT}/orchestration/reference-inputs.md` 在上下文策略中明确哪些 reference 需要加载、按需加载或避免加载；`references/` 默认只读，不生成、不修改、不清理。
-16. 用户批准环境方案后，必须先按方案完成当前业务项目的 Agent 环境初始化，并输出“初始化结果记录”；未完成初始化前，不进入 `/orch-for-ecc:task-docs`。
-17. 批准环境方案默认只授权软初始化；自动写入运行文档不等于授权硬初始化。硬初始化动作必须按方案中的“是否自动执行”字段和用户确认结果执行。涉及配置、MCP、环境变量、rules、hooks、凭证、外部系统或项目文件时，必须在交互式方案中单独列出风险、手动步骤和需授权的自动执行范围。
+## 当前业务项目 Agent 环境探测
 
-## 输出格式
+生成 `agent-environment.md` 前，必须先探测当前业务项目的 Agent 环境，并把探测结果作为初始化建议的事实来源。
 
-```markdown
+### 探测范围
+
+- 业务项目根目录：优先使用用户提供路径；否则使用当前 Claude Code 工作目录。如果当前目录是 `orch-for-ecc` 插件仓库或其他工具仓库，应要求用户提供业务项目路径。
+- 分诊文件：读取当前任务对应的 `diagnosis.md`。
+- 现有 Claude 项目配置：检查 `.claude/settings.local.json`、`.claude/settings.json`、`.claude/agents/`、`.claude/commands/`、`.claude/skills/`、`.claude/hooks/`、`.claude/rules/`、`.claude/runs/` 是否存在；只记录与本次初始化相关的事实。
+- 现有 MCP 配置：检查项目根目录 `.mcp.json`；记录 MCP server 名称、用途和是否疑似需要凭证。
+- 项目技术栈与验证入口：识别包管理器、主要语言/框架、build/test/lint/typecheck 脚本和必要项目说明；避免大范围加载源码。
+- ECC 插件配置项：从 `orch-for-ecc@orch-for-ecc.installPath` 定位 `${CLAUDE_PLUGIN_ROOT}`，从 `ecc@ecc.installPath` 定位 `ecc@ecc` 插件根目录；读取与当前任务相关的 baseline、capability map、README 或配置说明。
+
+### 探测边界
+
+- 不通过扫描 `~/.claude/plugins/cache/**/README.md` 定位插件目录。
+- 不读取、不记录、不补全 token、API key、secret 或其他凭证。
+- 不覆盖已有项目级 agents、commands、skills、hooks、rules；如建议变更，只写入待确认项。
+- 不把不存在或未确认可用的 `/ecc:*` 指令、Agent 或 MCP 写成硬依赖。
+
+### 探测失败处理
+
+出现以下情况时，停止在草案阶段，并要求用户补充或确认：
+
+- 业务项目根目录不明确。
+- 找不到或无法确认 `diagnosis.md`。
+- `diagnosis.md` 内容不足以决定环境建议。
+- `.claude/settings.local.json` 或 `.mcp.json` 与建议值存在明显冲突。
+- MCP 涉及凭证或外部系统，无法安全自动写入。
+- ECC 插件路径或配置项无法确认。
+
+## 初始化配置范围
+
+### `.claude/settings.local.json`
+
+用于当前业务项目的 Claude Code 项目级设置。只写入 `agent-environment.md` 中已批准的建议值。
+
+可包含但不限于：
+
+- 与当前任务相关的项目级环境变量建议。
+- 与当前任务相关的 Agent / hooks / permission / runtime 设置。
+- 与当前技术栈相关的验证入口提示。
+
+不得写入用户级 `~/.claude/settings.json`，不得修改全局环境变量或 shell profile。
+
+### `.mcp.json`
+
+用于当前业务项目的项目级 MCP 配置。只写入当前任务必要的 MCP server。
+
+要求：
+
+- 复用已有可用 MCP 配置，避免重复 server。
+- 新增 MCP 时优先使用环境变量引用凭证，而不是明文值。
+- 涉及外部系统、私有仓库、浏览器、云服务或凭证保护资源时，必须在草案中列为“需要用户确认”。
+- 不读取、不生成、不保存凭证。
+
+## `agent-environment.md` 输出格式
+
+````markdown
 # Agent 环境初始化方案
 
-## 任务输入摘要
+## 输入摘要
 
-| 项 | 内容 |
-| --- | --- |
-| 任务场景 | `<mvp-build / feature-add / feature-change / refactor-safe / migrate-safe / bug-fix / mixed>` |
-| 风险等级 | `<S / M / L / XL>` |
-| 主要目标 | `<目标>` |
-| 非目标 | `<非目标>` |
-| 验收标准 | `<验收标准>` |
+- 业务项目：`<path>`
+- 分诊文件：`<path/to/diagnosis.md>`
+- 任务场景：`<mvp-build / feature-add / feature-change / refactor-safe / migrate-safe / bug-fix / mixed>`
+- 风险等级：`<S / M / L / XL>`
+- 主要目标：`<目标>`
+- 验收标准：`<验收标准>`
 
-## 推荐环境级别
+## 当前 Agent 环境探测结果
 
-| 项 | 内容 |
-| --- | --- |
-| 级别 | `minimal / standard / strict` |
-| 理由 | `<为什么选择该级别>` |
-| 是否需要新会话 | `是 / 否` |
-| 是否需要调整运行时环境变量 | `是 / 否` |
-| 是否需要调整 MCP | `是 / 否` |
-| 是否需要用户级配置变更 | `默认否 / 待确认 / 是` |
+### 项目环境
 
-## ECC 安装与加载状态
+- 项目根目录：`<path>`
+- 分诊文件：`<path/to/diagnosis.md>`
+- 技术栈：`<language / framework / package manager>`
+- 验证入口：`<build / test / lint / typecheck 命令；没有则写“未发现”>`
 
-| 项 | 状态 / 建议 | 说明 |
-| --- | --- | --- |
-| ECC 插件 | `<已安装 / 未确认 / 不需要>` | 检查 `ecc@ecc` 是否可用；未确认时不把 `/ecc:*` 写成硬依赖 |
-| 安装方式 | `<plugin / manual / mixed / unknown>` | mixed 可能导致重复 skills、commands 或 hooks |
-| Rules | `<无需 / 可选 / 待确认>` | ECC plugin 不自动分发 rules；需要长期语言/框架约束时，在交互式方案中建议选择性安装或列出需授权动作 |
-| Hooks | `<保持默认 / 需要运行时调节 / 待确认>` | 不复制 hooks、不写 settings；必要时通过 ECC 环境变量调节，自动设置需单独授权 |
-| MCP | `<保持 / 减少 / 按需启用>` | MCP 工具描述会占用上下文；当前会话启停使用 `/mcp` |
+### 现有 Agent 配置
 
-## 上下文策略
+- Claude 项目配置：`.claude/settings.local.json` `<存在 / 不存在 / 需更新>`
+- MCP 配置：`.mcp.json` `<存在 / 不存在 / 需更新>`
+- 项目级 Agents / Commands / Skills：`<存在 / 不存在 / 不相关>`
+- Hooks / Rules：`<存在 / 不存在 / 不改动>`
 
-| 类型 | 使用内容 | 用途 | 是否必须 |
-| --- | --- | --- | --- |
-| 必读文件 | `<path>` | `<用途>` | 是 / 否 |
-| 参考输入 | `references/<path>` | `draft 需求 / 参考实现 / 设计参考 / 历史方案`，只读参考 | 是 / 否 |
-| 参考文档 | `<path>` | `<用途>` | 是 / 否 |
-| 运行记录 | `.claude/runs/...` | `<用途>` | 是 / 否 |
-| 避免加载 | `<path / 范围>` | `<避免原因>` | 是 / 否 |
+### 初始化判断
 
-## ECC 能力建议
+- 建议写入：`<.claude/settings.local.json / .mcp.json / 无>`
+- 保留不动：`<已有配置或不相关项>`
+- 需要用户确认：`<无 / 具体问题>`
 
-| 阶段 | 使用级别 | 推荐 `/ecc:*` 指令 | 可选 `ecc:*` Agent | 用途 | 触发条件 | Plan B |
-| --- | --- | --- | --- | --- | --- | --- |
-| 规划 | `必用 / 按需 / 不建议` | `<command>` | `<agent>` | `<用途>` | `<何时使用>` | `<降级方案>` |
-| 代码探索 | `必用 / 按需 / 不建议` | `<command>` | `<agent>` | `<用途>` | `<何时使用>` | `<降级方案>` |
-| 实现 | `必用 / 按需 / 不建议` | `<command>` | `<agent>` | `<用途>` | `<何时使用>` | `<降级方案>` |
-| 构建修复 | `必用 / 按需 / 不建议` | `<command>` | `<agent>` | `<用途>` | `<何时使用>` | `<降级方案>` |
-| 审查 | `必用 / 按需 / 不建议` | `<command>` | `<agent>` | `<用途>` | `<何时使用>` | `<降级方案>` |
-| 文档 | `必用 / 按需 / 不建议` | `<command>` | `<agent>` | `<用途>` | `<何时使用>` | `<降级方案>` |
+## ECC 配置依据
+
+- orch-for-ecc 插件根目录：`<path / 未确认>`
+- ecc 插件根目录：`<path / 未确认>`
+- 使用的 ECC 配置项：`<baseline / capability map / README / 其他>`
+- 可用 ECC 能力：`<与本任务相关的 /ecc:* 指令或 ecc:* Agent；没有则写“无”>`
+
+## 建议写入 `.claude/settings.local.json`
+
+```json
+{
+  "<key>": "<value>"
+}
+```
 
 说明：
-- 优先查询 `${CLAUDE_PLUGIN_ROOT}/orchestration/ecc-capability-map.md` 和当前可用 ECC 能力。
-- 如果 ECC 能力缺失、改名或不适用，按 Plan B 降级。
-- 不把不存在或未确认可用的 `/ecc:*` 指令写成硬依赖。
 
-## ECC 运行时环境变量建议
+- `<为什么需要这些项目级设置>`
+- `<与 diagnosis.md 或 ECC 配置项的对应关系>`
 
-只输出和当前任务相关的变量；无关变量不要为了填表而全量列出。
+## 建议写入 `.mcp.json`
 
-### 本任务建议调整
-
-| 变量 | 建议值 | 原因 | 生效方式 | 风险 / 注意 |
-| --- | --- | --- | --- | --- |
-| `<ENV>` | `<value>` | `<为什么本任务需要>` | `<用户手动设置 / 授权后自动设置>` | `<风险>` |
-
-### 本任务不建议调整
-
-| 变量 | 原因 |
-| --- | --- |
-| `<ENV>` | `<为什么不建议>` |
-
-### 固定注意事项
-
-- 默认不自动设置环境变量；如需设置，必须在硬初始化方案中列出手动命令或需授权的自动执行范围。
-- 不读取、不写入、不记录 token、API key 或凭证。
-- `ECC_DISABLED_MCPS` 只用于 ECC install/sync 过滤，不是当前 Claude Code 会话的 live MCP 开关。
-- 如任务涉及自定义 LLM gateway，只提示用户检查 Claude Code 自身配置；本 skill 不处理 `ANTHROPIC_BASE_URL` 或 `ANTHROPIC_AUTH_TOKEN`。
-- 可参考的 ECC 变量包括 `ECC_HOOK_PROFILE`、`ECC_DISABLED_HOOKS`、`ECC_SESSION_START_CONTEXT`、`ECC_SESSION_START_MAX_CHARS`、`ECC_SESSION_RETENTION_DAYS`、`ECC_MAX_INJECTED_INSTINCTS`、`ECC_INSTINCT_CONFIDENCE_THRESHOLD`、`ECC_CONTEXT_MONITOR_COST_WARNINGS`、`ECC_DISABLED_MCPS`、`ECC_AGENT_DATA_HOME`。
-- 构建或测试任务中，如包管理器不明确，可按项目事实建议 `CLAUDE_PACKAGE_MANAGER`，但不覆盖项目已明确的 package manager。
-
-## MCP 与上下文预算
-
-| 项 | 建议 | 理由 | 操作边界 |
-| --- | --- | --- | --- |
-| MCP 数量 | `<保持 / 减少 / 不新增 / 按需启用>` | MCP 工具描述会占用上下文 | 默认建议；如需变更，在交互式方案中列出 `/mcp` 手动步骤或需授权的自动执行范围 |
-| 必要 MCP | `<context7 / github / chrome-devtools / ...>` | `<为什么本任务需要>` | 默认建议；涉及凭证或外部系统时需单独确认 |
-| 避免 MCP | `<mcp>` | `<不相关 / 工具过多 / 凭证风险 / 外部副作用>` | 默认不变更；如需禁用，在交互式方案中列出手动步骤或需授权范围 |
-| 工具预算 | `<建议少于 10 个 MCP、少于 80 个 MCP tools>` | 降低上下文占用和工具选择噪音 | 作为建议，不强制 |
+```json
+{
+  "mcpServers": {
+    "<server-name>": {
+      "command": "<command>",
+      "args": ["<arg>"],
+      "env": {
+        "<TOKEN_NAME>": "${ENV_VAR_NAME}"
+      }
+    }
+  }
+}
+```
 
 说明：
-- MCP 默认作为配置建议；如需启用、禁用、复制配置、写 settings 或处理凭证，必须作为硬初始化动作单独列出风险并等待用户确认。
-- 当前 Claude Code 会话的 MCP 启停应使用 `/mcp`。
-- `ECC_DISABLED_MCPS` 只用于 ECC-managed install/sync 过滤，不作为当前会话 MCP 开关。
-- 如果 MCP 会访问外部系统、私有仓库、issue、PR、浏览器或凭证保护资源，需要用户确认。
 
-## Agent 派发策略
+- `<为什么当前任务需要这些 MCP>`
+- `<是否涉及外部系统或凭证>`
 
-| Agent | 使用条件 | 角色 | 读写权限 | 输入材料 | 输出产物 | 停止条件 |
-| --- | --- | --- | --- | --- | --- | --- |
-| `<agent>` | `<何时使用>` | `<角色>` | `<只读 / 可写 / 限定范围>` | `<路径/问题/文档>` | `<结论/代码/报告>` | `<停止条件>` |
-| 主 Agent | 默认 | 集成、执行、最终验收 | 可写，按计划限定 | 已确认计划 | 代码改动 / 文档改动 / 交付报告 | 验证通过或遇到越界事项 |
+## 不建议改动
 
-说明：
-- 简单顺序任务默认由主 Agent 执行，避免不必要的额外上下文窗口和成本。
-- 多 Agent 只在影响面探索、并行审查、多模块任务或 L/XL 任务中使用。
-- 探索、审查、安全、性能、文档建议类 Agent 默认只读。
-- 同一批文件同一阶段只允许一个最终写入/合并方。
+- `<已有配置或不相关项>`：`<原因>`
 
-## 验证门禁
+## 批准后执行动作
 
-| 门禁 | 命令 / 方法 | 触发条件 | 通过标准 |
-| --- | --- | --- | --- |
-| build | `<command>` | 有代码改动 | 退出码 0 |
-| test | `<command>` | 影响逻辑 | 相关测试通过 |
-| lint / typecheck | `<command>` | 有格式或类型约束 | 无新增错误 |
-| E2E / 可观察验证 | `<方法>` | 影响用户路径 | 关键路径可观察通过 |
-| review | `<review 方法 / /ecc:* 指令 / Agent>` | M+ 改动或核心路径 | 无阻断问题 |
-
-## 批准后初始化动作
-
-| 动作 | 类型 | 是否自动执行 | 说明 |
-| --- | --- | --- | --- |
-| 采用上下文策略 | 软初始化 | 是 | 后续只加载本方案允许的上下文 |
-| 限定 ECC 能力 | 软初始化 | 是 | 后续只按本方案推荐能力和 Plan B 执行 |
-| 限定 Agent 派发 | 软初始化 | 是 | 后续按读写权限、输入材料和停止条件派发 |
-| 应用验证门禁 | 软初始化 | 是 | 后续 `/orch-for-ecc:task-docs` 和执行计划必须继承 |
-| 调整环境变量 | 硬初始化 | 待确认 / 按授权执行 | 列出手动命令、风险和需授权的自动执行范围 |
-| 调整 MCP | 硬初始化 | 待确认 / 按授权执行 | 优先列出 `/mcp` 手动步骤；自动变更需单独授权，不处理凭证 |
-| 安装 ECC rules | 硬初始化 | 待确认 / 按授权执行 | 建议选择性安装；自动复制或写入需单独授权 |
-| 修改项目文件 | 硬初始化 | 待确认 / 按授权执行 | 限定文件范围、风险和回滚方式后单独确认 |
+1. 写入或更新 `.claude/settings.local.json`。
+2. 写入或更新 `.mcp.json`。
+3. 输出初始化结果记录。
 
 ## 初始化结果记录
 
-用户批准环境方案并自动写入 `agent-environment.md` 后，Agent 应先按批准范围完成初始化，再输出：
+- 已写入：`<文件和关键项>`
+- 已保留：`<未改动项>`
+- 未执行：`<原因>`
+- 后续约束：`<后续 task-docs / 实现 / 验证必须继承的约束>`
 
-- 已生效的软初始化：
-  - `<上下文策略 / ECC 能力 / Agent 派发 / 验证门禁>`
-- 已获授权并完成的硬初始化：
-  - `<环境变量 / MCP / rules / 配置 / 项目文件>`
-- 待用户手动执行或仍需另行授权的硬初始化：
-  - `<环境变量 / MCP / rules / 配置 / 项目文件>`
-- 后续阶段必须继承的约束：
-  - `<约束>`
+````
 
-未输出初始化结果记录前，不进入 `/orch-for-ecc:task-docs`。
-
-## 需要用户确认
-
-以下事项必须作为交互确认清单处理。先确认待确认问题，完成后展示最终草案，再确认是否批准写入 `agent-environment.md`；回答问题和批准写入不可混淆。
-
-| 事项 | 原因 | 默认建议 |
-| --- | --- | --- |
-| 是否调整 ECC 环境变量 | 可能影响当前或后续 Claude Code 行为 | 列出建议值、风险、手动命令和需授权的自动执行范围 |
-| 是否启用或禁用 MCP | MCP 影响上下文、工具数量和外部访问 | 优先给出 `/mcp` 手动步骤；自动变更需单独授权 |
-| 是否安装或调整 ECC rules | plugin 不自动分发 rules，且 rules 会增加长期上下文 | 按语言/框架选择性安装；自动复制或写入需单独授权 |
-| 是否允许写入项目文件 | 涉及实际代码、文档或配置修改 | 限定文件范围、自动执行范围和回滚方式后再确认 |
-| 是否允许外部访问 | GitHub、浏览器、云服务、API 文档等可能有外部副作用 | 明确访问范围、凭证边界和自动执行范围后再使用 |
-
-## 下一步
-
-- 如果用户明确确认全部待确认问题并批准写入环境方案：
-  1. 自动写入 `.claude/runs/<date>-<task-slug>/agent-environment.md`；
-  2. 先按“批准后初始化动作”初始化当前业务项目 Agent 环境；
-  3. 输出“初始化结果记录”；
-  4. 再进入 `/orch-for-ecc:task-docs`。
-- 如果用户要求修改：更新本方案后重新确认，不写入旧方案。
-- 如果分诊、风险或验收标准不足：回退到 `/orch-for-ecc:task-triage`，不写入正式运行文档。
-```
+- 展示 `agent-environment.md` 草案后，必须让用户明确批准，才能写入 `.claude/settings.local.json` 和 `.mcp.json`。
+- 用户回答问题、提供补充信息、说“继续看看”等，不等于批准写入。
+- 如用户要求修改草案，先更新草案，再重新请求批准。
+- 用户批准后，应按草案自动完成项目级 Agent 环境初始化，不再重复询问“是否自动设置”。
+- 如果批准后执行时发现草案之外的新风险，应停止并请求用户确认。
 
 ## 运行文档
 
-交互确认完成、最终草案已展示且用户明确批准“写入该运行文档”后，自动写入：
+用户批准最终草案后，自动写入：
 
 ```text
 .claude/runs/<date>-<task-slug>/agent-environment.md
 ```
 
-未完成交互确认前只保留草案，不写入正式运行文档。回答问题不等于批准写入；该确认只授权写入 `agent-environment.md`，不授权实现、进入文档初始化、硬初始化、配置/MCP/环境变量/rules/hooks 修改、外部访问或项目文件改动。非交互输入、沉默、默认选项或模糊的“继续”不构成批准。
+日期使用 ISO 格式，例如 `2026-07-28`。
 
-日期建议使用 ISO 格式，例如 `2026-07-21`。
+写入运行文档后，立即按批准方案初始化当前业务项目 Agent 环境，并输出“初始化结果记录”。
+
+未完成初始化结果记录前，不进入 `/orch-for-ecc:task-docs` 或业务实现。
