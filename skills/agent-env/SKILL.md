@@ -63,7 +63,7 @@ metadata:
 - 现有 Claude 项目配置：检查 `.claude/settings.local.json`、`.claude/settings.json`、`.claude/agents/`、`.claude/commands/`、`.claude/skills/`、`.claude/hooks/`、`.claude/rules/`、`.claude/runs/` 是否存在；只记录与本次初始化相关的事实。
 - 现有 MCP 配置：检查项目根目录 `.mcp.json`；记录 MCP server 名称、用途和是否疑似需要凭证。
 - 项目技术栈与验证入口：识别包管理器、主要语言/框架、build/test/lint/typecheck 脚本和必要项目说明；避免大范围加载源码。
-- ECC 插件配置项：从 `orch-for-ecc@orch-for-ecc.installPath` 定位 `${CLAUDE_PLUGIN_ROOT}`，从 `ecc@ecc.installPath` 定位 `ecc@ecc` 插件根目录；读取与当前任务相关的 baseline、capability map、README 或配置说明。
+- ECC 插件配置项：从 `ecc@ecc.installPath` 定位 `ecc@ecc` 插件根目录；在给出任何 ECC 配置建议前，必须读取 ECC README 或等价配置说明中的运行时配置项，完整盘点当前版本可用的 ECC 配置项，再结合 `diagnosis.md` 和项目事实选择建议值。
 
 ### 探测边界
 
@@ -71,6 +71,7 @@ metadata:
 - 不读取、不记录、不补全 token、API key、secret 或其他凭证。
 - 不覆盖已有项目级 agents、commands、skills、hooks、rules；如建议变更，只写入待确认项。
 - 不把不存在或未确认可用的 `/ecc:*` 指令、Agent 或 MCP 写成硬依赖。
+- 不得只因为 `diagnosis.md` 提到某个 ECC 配置项就直接写入；必须先确认当前 `ecc@ecc` 版本支持该配置项，并说明为什么只写入它而不写入其他相关配置项。
 
 ### 探测失败处理
 
@@ -79,6 +80,7 @@ metadata:
 - 业务项目根目录不明确。
 - 找不到或无法确认 `diagnosis.md`。
 - `diagnosis.md` 内容不足以决定环境建议。
+- 尚未完整盘点当前 `ecc@ecc` 版本的运行时配置项，或无法确认某个建议配置项是否受支持。
 - `.claude/settings.local.json` 或 `.mcp.json` 与建议值存在明显冲突。
 - MCP 涉及凭证或外部系统，无法安全自动写入。
 - ECC 插件路径或配置项无法确认。
@@ -94,6 +96,12 @@ metadata:
 - 与当前任务相关的项目级环境变量建议。
 - 与当前任务相关的 Agent / hooks / permission / runtime 设置。
 - 与当前技术栈相关的验证入口提示。
+
+写入 ECC 运行时配置前，必须完成配置项盘点：
+
+- 先列出当前 `ecc@ecc` 版本支持的相关配置项，例如 hook profile、session start、retention、instinct、context monitor、MCP 过滤、agent data home 等类别。
+- 再说明本次建议写入哪些项、建议值是什么、依据是什么。
+- 对未写入但相关的配置项，必须简要说明不写入原因，例如“不相关”“保持默认”“缺少需求依据”“涉及凭证/外部系统”。
 
 不得写入用户级 `~/.claude/settings.json`，不得修改全局环境变量或 shell profile。
 
@@ -146,10 +154,20 @@ metadata:
 
 ## ECC 配置依据
 
-- orch-for-ecc 插件根目录：`<path / 未确认>`
 - ecc 插件根目录：`<path / 未确认>`
-- 使用的 ECC 配置项：`<baseline / capability map / README / 其他>`
+- 使用的 ECC 配置说明：`<README / runtime controls / 其他>`
+- 已盘点的 ECC 配置项：`<当前 ecc@ecc 版本支持的相关配置项清单>`
 - 可用 ECC 能力：`<与本任务相关的 /ecc:* 指令或 ecc:* Agent；没有则写“无”>`
+
+## ECC 配置选择
+
+### 建议写入
+
+- `<配置项>`：`<建议值>`；依据：`<diagnosis.md / ECC 配置说明 / 项目事实>`
+
+### 不写入
+
+- `<配置项>`：`<不相关 / 保持默认 / 缺少需求依据 / 涉及凭证或外部系统 / 其他原因>`
 
 ## 建议写入 `.claude/settings.local.json`
 
